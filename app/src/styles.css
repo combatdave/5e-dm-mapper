@@ -397,6 +397,12 @@ body.haspad .edbar{left:auto;right:10px;transform:none}
   padding:9px 12px;font:500 14px var(--font);
 }
 .dialog input:focus{outline:none;border-color:var(--brass)}
+.dialog.wide{width:min(92vw,460px)}
+.dialog textarea{
+  height:34vh;background:var(--well);color:var(--text);border:1px solid var(--line);
+  border-radius:9px;padding:8px;font:12px var(--mono);resize:none;
+}
+.dialog textarea:focus{outline:none;border-color:var(--brass)}
 .dlgrow{display:flex;gap:8px;justify-content:flex-end;margin-top:2px}
 
 /* keyboard focus */

@@ -9,7 +9,7 @@ import {
   parseBundleFile, writeImportedPins,
 } from "./modules";
 import { SaveImporter } from "./SaveImport";
-import { ConfirmDialog, PromptDialog } from "./Dialogs";
+import { ConfirmDialog, PromptDialog, TextDialog } from "./Dialogs";
 import { saveFile } from "./helpers";
 
 type Bundle = ReturnType<typeof parseBundleFile>;
@@ -26,6 +26,7 @@ export function Home({ modules, onOpen, onCreate, onDelete, onRename }: {
   const [deleting, setDeleting] = useState<ModuleDef | null>(null);
   const [renaming, setRenaming] = useState<ModuleDef | null>(null);
   const [clash, setClash] = useState<{ pages: Bundle; titles: string[] } | null>(null);
+  const [exportText, setExportText] = useState<{ name: string; json: string } | null>(null);
 
   function importPages(pages: Bundle) {
     for (const { module, pins } of pages) {
@@ -46,13 +47,16 @@ export function Home({ modules, onOpen, onCreate, onDelete, onRename }: {
     }
   }
 
+  const doExport = (name: string, json: string) =>
+    void saveFile(name, json).then(handled => { if (!handled) setExportText({ name, json }); });
+
   const exportOne = (m: ModuleDef) =>
-    void saveFile(
+    doExport(
       m.title.replace(/\W+/g, "-").replace(/^-|-$/g, "").toLowerCase() + ".dmmap.json",
       exportPageBundle(m, collectPinsByMap(m)),
     );
 
-  const exportAll = () => void saveFile("dm-mapper-pages.dmmap.json", exportAllBundles(modules));
+  const exportAll = () => doExport("dm-mapper-pages.dmmap.json", exportAllBundles(modules));
 
   return (
     <>
@@ -131,6 +135,14 @@ export function Home({ modules, onOpen, onCreate, onDelete, onRename }: {
           confirmLabel="rename"
           onSubmit={t => { onRename(renaming.id, t); setRenaming(null); }}
           onCancel={() => setRenaming(null)}
+        />
+      )}
+      {exportText && (
+        <TextDialog
+          title={exportText.name}
+          hint="downloads are blocked in this environment — copy the contents and save them under this filename instead"
+          text={exportText.json}
+          onClose={() => setExportText(null)}
         />
       )}
       {clash && (

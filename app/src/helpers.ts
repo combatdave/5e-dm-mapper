@@ -48,22 +48,29 @@ export function openArea(href: string): void {
   document.body.appendChild(a); a.click(); a.remove();
 }
 
-/* save a generated file: sandboxed iframes block <a download>, so the
-   hosted preview goes through its downloads API (the viewer confirms);
-   everywhere else a plain blob download */
-export async function saveFile(filename: string, text: string): Promise<void> {
+/* save a generated file. Sandboxed iframes block <a download>, so the
+   hosted preview goes through its downloads API (viewer-confirmed)
+   when granted; everywhere else a plain blob download. Returns false
+   when no download path exists — the caller should fall back to
+   showing the text for copying. */
+export async function saveFile(filename: string, text: string): Promise<boolean> {
   const dl = window.claude?.downloads;
   if (dl) {
-    try { await dl.save({ filename, data: text }); }
-    catch { /* viewer declined or saves unavailable — nothing to force */ }
-    return;
+    try { await dl.save({ filename, data: text }); return true; }
+    catch (e) {
+      const code = (e as { code?: string } | null)?.code;
+      /* the viewer said no (or a prompt is already open): their call */
+      return code === "declined" || code === "rate_limited";
+    }
   }
+  if (window.claude) return false;   // hosted preview without a download grant
   const a = document.createElement("a");
   const blob = new Blob([text], { type: "application/json" });
   a.href = URL.createObjectURL(blob);
   a.download = filename;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  return true;
 }
 
 /* room label → hover title, e.g. "10. Honor Guard" / "Trap — 24. …" */
