@@ -411,12 +411,13 @@ export const MapView = forwardRef<MapHandle, Props>(function MapView(
     if (!pin) return null;
     const num = pin.label.replace(/^[TS]/, "");
     const digest = module.areas?.[num];
+    const markType = pin.mark && /^[TS]/.test(pin.label) ? (pin.label[0] as "T" | "S") : undefined;
     const vpEl = vpRef.current;
     const vw = vpEl?.clientWidth || 600, vh = vpEl?.clientHeight || 400;
     const left = clamp(card.px - 140, 8, Math.max(8, vw - 288));
     const above = card.py > vh * 0.45;
     const top = above ? clamp(card.py - 16, 100, vh - 10) : clamp(card.py + 18, 8, vh - 80);
-    return { pin, num, digest, left, top, above };
+    return { pin, num, digest, markType, left, top, above };
   })();
 
   return (
@@ -446,7 +447,7 @@ export const MapView = forwardRef<MapHandle, Props>(function MapView(
               onClick={e => e.preventDefault()}
               onDragStart={e => e.preventDefault()}
             >
-              {p.label}
+              {p.mark ? p.label[0] : p.label}
               {creatures?.length ? <span className="pinbadge" aria-hidden="true" /> : null}
             </a>
             );
@@ -477,6 +478,7 @@ export const MapView = forwardRef<MapHandle, Props>(function MapView(
           name={module.names[cardData.num]}
           digest={cardData.digest}
           href={hrefFor(cardData.pin) || undefined}
+          mark={cardData.markType}
           left={cardData.left}
           top={cardData.top}
           above={cardData.above}

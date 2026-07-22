@@ -5,11 +5,12 @@
  */
 import type { AreaDigest } from "./mhtml";
 
-export function AreaCard({ num, name, digest, href, left, top, above, onOpenText, onOpenCreature, onClose }: {
+export function AreaCard({ num, name, digest, href, mark, left, top, above, onOpenText, onOpenCreature, onClose }: {
   num: string;
   name?: string;
   digest?: AreaDigest;
   href?: string;
+  mark?: "T" | "S";      // a trap/secret marker: show only its hazard
   left: number;
   top: number;
   above: boolean;
@@ -29,6 +30,13 @@ export function AreaCard({ num, name, digest, href, left, top, above, onOpenText
         <b>{num}{name ? `. ${name}` : ""}</b>
         {href && <button className="ac-open" onClick={onOpenText}>open ↗</button>}
       </div>
+      {mark === "T" && (digest?.traps
+        ? <p className="ac-hazard"><b>trap</b>{digest.traps.replace(/^[^.:]{0,48}[.:]\s*/, "")}</p>
+        : <p className="ac-none">no trap text found in this area</p>)}
+      {mark === "S" && (digest?.secrets
+        ? <p className="ac-hazard"><b>secret</b>{digest.secrets.replace(/^[^.:]{0,48}[.:]\s*/, "")}</p>
+        : <p className="ac-none">no secret-door text found in this area</p>)}
+      {!mark && <>
       {digest?.readAloud && <p className="ac-read">{digest.readAloud}</p>}
       {digest?.creatures.length ? (
         <div className="ac-row">
@@ -45,9 +53,10 @@ export function AreaCard({ num, name, digest, href, left, top, above, onOpenText
           {digest.dcs.map(dc => <span key={dc} className="ac-chip ac-dc">{dc}</span>)}
         </div>
       ) : null}
-      {digest?.traps && <p className="ac-hazard"><b>trap</b>{digest.traps.replace(/^traps?[.:]\s*/i, "")}</p>}
-      {digest?.secrets && <p className="ac-hazard"><b>secret</b>{digest.secrets.replace(/^secret( doors?| passages?)?[.:]?\s*/i, "")}</p>}
+      {digest?.traps && <p className="ac-hazard"><b>trap</b>{digest.traps.replace(/^[^.:]{0,48}[.:]\s*/, "")}</p>}
+      {digest?.secrets && <p className="ac-hazard"><b>secret</b>{digest.secrets.replace(/^[^.:]{0,48}[.:]\s*/, "")}</p>}
       {!digest && <p className="ac-none">no saved text for this area{href ? " — tap the pin to open it" : ""}</p>}
+      </>}
     </div>
   );
 }

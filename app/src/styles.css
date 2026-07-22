@@ -183,8 +183,8 @@ body.editing .zoomctl{top:10px;bottom:auto}  /* keep clear of the edit bars */
 }
 .pin::before{content:"";position:absolute;inset:-7px;border-radius:50%} /* fat-finger hit area */
 .pin:hover{background:var(--accent);color:var(--bg)}
-.pin.mk{width:15px;height:15px;margin:-7.5px 0 0 -7.5px;font-size:8px;
-  border-style:dashed;border-color:var(--gold);color:var(--gold)}
+.pin.mk{width:14px;height:14px;margin:-7px 0 0 -7px;font-size:9.5px;
+  border-radius:3px;border-color:var(--gold);color:var(--gold)}
 .pin.mk:hover{background:var(--gold);color:var(--bg)}
 body.editing .pin{cursor:grab}
 body.editing.dragging .pin{cursor:grabbing}
