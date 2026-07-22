@@ -175,6 +175,23 @@ const NUM_WORDS: Record<string, number> = {
   six: 6, seven: 7, eight: 8, nine: 9, ten: 10, twelve: 12,
 };
 
+/* Bold run-in header at the very start of a block, if any:
+   <p><strong><em>Hidden Pit.</em></strong> The map shows …</p> → "Hidden Pit." */
+function boldLead(el: Element): string {
+  for (const n of Array.from(el.childNodes)) {
+    if (n.nodeType === Node.TEXT_NODE) {
+      if ((n.textContent || "").trim()) return "";   // real text precedes any bold
+      continue;
+    }
+    if (n.nodeType !== Node.ELEMENT_NODE) continue;
+    const tag = (n as Element).tagName;
+    if (tag !== "STRONG" && tag !== "B") return "";
+    const t = (n.textContent || "").trim().replace(/\s+/g, " ");
+    return t.length <= 60 ? t : "";                  // whole-bold paragraphs aren't headers
+  }
+  return "";
+}
+
 /* "12. Larder" headings bound each area's slice of the document */
 function extractAreas(doc: Document, baseUrl: string): Record<string, AreaDigest> {
   const areas: Record<string, AreaDigest> = {};
@@ -209,11 +226,14 @@ function extractAreas(doc: Document, baseUrl: string): Record<string, AreaDigest
         digest.readAloud = txt.slice(0, 400);
         continue;
       }
-      /* WotC formats hazards as bold lead-in sentences before the
-         first period: "Trap.", "Arrow Trap.", "Poisoned Needle
-         Traps.", "Secret Door.", "Secret Trapdoor." … */
-      const lead = ((txt.match(/^([^.:!?]{1,48})[.:]/) || [])[1] || "").trim();
-      if (/\btraps?$/i.test(lead)) traps.push(txt);
+      /* WotC formats hazards as bold run-in headers: "<strong>Arrow
+         Trap.</strong>", "<strong><em>Hidden Pit.</em></strong>",
+         "Secret Door." … The bold element at the very start of the
+         paragraph is the reliable signal; fall back to the text
+         before the first period for saves with flattened markup. */
+      const bold = boldLead(b);
+      const lead = (bold || (txt.match(/^([^.:!?]{1,48})[.:]/) || [])[1] || "").trim();
+      if (/\b(traps?|pits?)\s*[.:]?$/i.test(lead)) traps.push(txt);
       else if (/\bsecret\b/i.test(lead)) secrets.push(txt);
       textParts.push(txt);
       /* creatures: monster links, with a count just before when present */
