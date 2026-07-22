@@ -8,11 +8,12 @@
 import { BASE_PINS, EXPECTED, HREFS, MAP, MODULE_URL, NAMES } from "./mapdata";
 import glyphData from "./glyphs.json";
 import type { PageHeading, PageImage } from "./mhtml";
+import type { LearnedDigits } from "./segment";
 
 export interface GlyphData {
   cells: Record<string, number[][]>;
   p: { pitch: number; cw: number; chh: number; rx: number; ry: number; comp: number; pen: number };
-  combos?: number;   // font variants to try per digit (default 2)
+  combos?: number;   // glyph variants to try per digit (default 2)
 }
 
 export interface MapDef {
@@ -33,7 +34,7 @@ export interface ModuleDef {
   maps: MapDef[];
   builtin?: boolean;
   glyphs?: GlyphData;               // glyphs sampled from the map itself (built-in)
-  learned?: GlyphData;              // glyphs sampled from confirmed placements
+  learnedDigits?: LearnedDigits;    // canonical crops from confirmed placements
   basePins?: Record<string, number[][]>;
 }
 

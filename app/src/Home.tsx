@@ -35,12 +35,24 @@ export function Home({ modules, onOpen, onCreate, onDelete }: {
   async function handleFile(file: File) {
     setBusy(true); setError("");
     try {
+      const t0 = performance.now();
       const page = await parseSavedPage(file);
+      const t1 = performance.now();
       const candidates = await measureImages(page.images);
+      console.log(`upload: parsed ${Math.round(file.size / 1024)}kB in ${Math.round(t1 - t0)}ms, ` +
+        `measured ${page.images.length} images in ${Math.round(performance.now() - t1)}ms`);
       if (!candidates.length)
         throw new Error("No usable images found — save the page as “Webpage, Single File” (.mhtml) so the map is embedded.");
-      /* biggest image is almost always the map — preselect it */
-      setPicker({ page, candidates, selected: new Set([0]) });
+      /* preselect the likely maps: D&D Beyond names its map files
+         "map-…", which beats any size heuristic (the biggest images
+         are usually art). Fallback: largest portrait-ish image. */
+      const byName = candidates
+        .map((c, i) => ({ c, i }))
+        .filter(({ c }) => /(^|[/_.-])map[-._]/i.test(c.image.location))
+        .map(({ i }) => i);
+      const mapish = candidates.findIndex(c => c.width / c.height <= 1.6);
+      const selected = byName.length ? byName : [mapish >= 0 ? mapish : 0];
+      setPicker({ page, candidates, selected: new Set(selected) });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -137,22 +149,87 @@ export function Home({ modules, onOpen, onCreate, onDelete }: {
   );
 }
 
-/* load every image once to learn its real size; drop icons and
-   decorations, biggest first */
+/* learn every image's size — from the file header when we have the
+   bytes (instant; decoding 50 embedded images just for dimensions
+   takes ten seconds), by loading only for remote URLs — then drop
+   icons and decorations, biggest first */
 async function measureImages(images: PageImage[]): Promise<Candidate[]> {
   const out: Candidate[] = [];
-  await Promise.all(images.map(im => new Promise<void>(resolve => {
-    const src = im.blob ? URL.createObjectURL(im.blob) : im.url || "";
-    if (!src) return resolve();
-    const el = new Image();
-    const done = (keep: boolean) => {
-      if (keep) out.push({ image: im, src, width: el.naturalWidth, height: el.naturalHeight });
-      else if (im.blob) URL.revokeObjectURL(src);
-      resolve();
-    };
-    el.onload = () => done(Math.min(el.naturalWidth, el.naturalHeight) >= 220);
-    el.onerror = () => done(false);
-    el.src = src;
-  })));
-  return out.sort((a, b) => b.width * b.height - a.width * a.height).slice(0, 24);
+  /* embedded images resolve instantly from their headers; remote ones
+     need a network round-trip that can stall (offline, slow CDN) — show
+     the picker with whatever has resolved after a short grace period */
+  const all = Promise.all(images.map(async im => {
+    let dims = im.blob ? await dimsFromHeader(im.blob) : null;
+    let src = "";
+    if (!dims) {
+      src = im.blob ? URL.createObjectURL(im.blob) : im.url || "";
+      if (!src) return;
+      dims = await new Promise<{ w: number; h: number } | null>(resolve => {
+        const el = new Image();
+        el.onload = () => resolve({ w: el.naturalWidth, h: el.naturalHeight });
+        el.onerror = () => resolve(null);
+        el.src = src;
+      });
+      if (!dims || Math.min(dims.w, dims.h) < 220) {
+        if (im.blob && src) URL.revokeObjectURL(src);
+        return;
+      }
+    } else if (Math.min(dims.w, dims.h) < 220) {
+      return;
+    }
+    if (!src) src = im.blob ? URL.createObjectURL(im.blob) : im.url || "";
+    out.push({ image: im, src, width: dims.w, height: dims.h });
+  }));
+  await Promise.race([all, new Promise(res => setTimeout(res, 3500))]);
+  /* drop byte-identical duplicates (same image saved under two URLs) */
+  const seen = new Set<string>();
+  const unique = out.filter(c => {
+    const key = `${c.width}x${c.height}:${c.image.blob?.size ?? c.image.url}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return unique.sort((a, b) => b.width * b.height - a.width * a.height).slice(0, 24);
+}
+
+/* image dimensions straight from the container header — no decode */
+async function dimsFromHeader(blob: Blob): Promise<{ w: number; h: number } | null> {
+  const b = new Uint8Array(await blob.slice(0, 65536).arrayBuffer());
+  const u16be = (i: number) => (b[i] << 8) | b[i + 1];
+  const u32be = (i: number) => ((b[i] << 24) | (b[i + 1] << 16) | (b[i + 2] << 8) | b[i + 3]) >>> 0;
+  const u16le = (i: number) => b[i] | (b[i + 1] << 8);
+  const u24le = (i: number) => b[i] | (b[i + 1] << 8) | (b[i + 2] << 16);
+
+  /* PNG */
+  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47)
+    return { w: u32be(16), h: u32be(20) };
+  /* GIF */
+  if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46)
+    return { w: u16le(6), h: u16le(8) };
+  /* JPEG: scan for a start-of-frame marker */
+  if (b[0] === 0xff && b[1] === 0xd8) {
+    let i = 2;
+    while (i + 9 < b.length) {
+      if (b[i] !== 0xff) { i++; continue; }
+      const m = b[i + 1];
+      if (m === 0xd8 || m === 0x01 || (m >= 0xd0 && m <= 0xd7)) { i += 2; continue; }
+      if ((m >= 0xc0 && m <= 0xc3) || (m >= 0xc5 && m <= 0xc7) ||
+          (m >= 0xc9 && m <= 0xcb) || (m >= 0xcd && m <= 0xcf))
+        return { w: u16be(i + 7), h: u16be(i + 5) };
+      i += 2 + u16be(i + 2);
+    }
+    return null;
+  }
+  /* WebP */
+  if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 &&
+      b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) {
+    const fourcc = String.fromCharCode(b[12], b[13], b[14], b[15]);
+    if (fourcc === "VP8X") return { w: u24le(24) + 1, h: u24le(27) + 1 };
+    if (fourcc === "VP8 ") return { w: u16le(26) & 0x3fff, h: u16le(28) & 0x3fff };
+    if (fourcc === "VP8L") {
+      const n = b[21] | (b[22] << 8) | (b[23] << 16) | (b[24] << 24);
+      return { w: (n & 0x3fff) + 1, h: ((n >> 14) & 0x3fff) + 1 };
+    }
+  }
+  return null;
 }

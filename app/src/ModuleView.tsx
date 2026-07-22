@@ -151,7 +151,7 @@ export function ModuleView({ module, onBack }: { module: ModuleDef; onBack: () =
                 store={stores[i]}
                 editing={editing}
                 onLearned={module.builtin ? undefined : learned => {
-                  module.learned = learned;         // matcher improves as placements are confirmed
+                  module.learnedDigits = learned;   // matcher improves as placements are confirmed
                   void saveModule(module);
                 }}
               />

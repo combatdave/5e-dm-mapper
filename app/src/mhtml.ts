@@ -71,7 +71,9 @@ function parseMhtml(raw: string): ParsedPage {
   const htmlPart = parts.find(p => p.type === "text/html");
   if (!htmlPart) throw new Error("No HTML document found in the archive.");
   const html = new TextDecoder().decode(htmlPart.body);
-  const sourceUrl = snapshotUrl || htmlPart.location;
+  /* the save may carry the scroll anchor of the moment it was made —
+     drop it, pins/chips append their own area anchors */
+  const sourceUrl = (snapshotUrl || htmlPart.location).split("#")[0];
 
   const byLocation = new Map<string, MimePart>();
   for (const p of parts) if (p.location) byLocation.set(p.location, p);
@@ -106,7 +108,7 @@ function parseHtmlText(html: string, sourceUrl: string, fallbackTitle: string): 
   const canonical =
     doc.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.getAttribute("href") ||
     doc.querySelector("base")?.getAttribute("href") || "";
-  const url = sourceUrl || canonical || "";
+  const url = (sourceUrl || canonical || "").split("#")[0];
 
   const images: PageImage[] = [];
   const seen = new Set<string>();
@@ -142,11 +144,10 @@ function parseHtmlText(html: string, sourceUrl: string, fallbackTitle: string): 
 /* ---------- decoding helpers ------------------------------------------ */
 
 function latin1(bytes: Uint8Array): string {
-  let out = "";
-  const CHUNK = 0x8000;
-  for (let i = 0; i < bytes.length; i += CHUNK)
-    out += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
-  return out;
+  /* iso-8859-1 maps every byte to the same code point, so this string
+     round-trips bytes exactly — and TextDecoder is native-fast, which
+     matters on 10MB+ archives */
+  return new TextDecoder("iso-8859-1").decode(bytes);
 }
 
 function latin1Bytes(s: string): Uint8Array {

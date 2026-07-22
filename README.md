@@ -21,17 +21,20 @@ downloading it onto a tablet works just as well.
    module directly.
 
 2. **Annotate.** In **edit pins** mode, tap a printed room number on
-   the map. Recognition guesses the number under your finger by
-   normalized cross-correlation: the built-in module matches glyphs
-   sampled from its own map; uploaded maps start from digit templates
-   rendered at runtime in several generic fonts and sizes — and every
-   placement you confirm samples the number's real pixels into a
-   per-module *learned* set, so guesses converge on the map's actual
-   font. Wrong guess? Alternatives are on the bar, the full number rail
-   is one tap away, and `T`/`S` marker rails tag traps and secret doors
-   to a room. Fine-tune with the nudge d-pad (touch) or by dragging
-   (mouse). If the map image can't be read at all (remote image without
-   CORS), tapping simply opens the rail to pick the label by hand.
+   the map. The built-in module matches glyphs sampled from its own
+   map; uploaded maps get segment-then-classify OCR — the digit-shaped
+   ink blobs under your tap are cut out (either polarity), normalized
+   to a canonical grid, and scored against digit templates rendered in
+   several fonts, plus every glyph this map has taught us: confirming
+   a placement (✓) samples the number's real pixels into a per-module
+   learned set. Cold guesses on dense old-school maps are hit-or-miss;
+   after a handful of confirmations the learned glyphs take over (on
+   the Sunless Citadel maps: ~1/8 cold → 6/8 after eight taps). Wrong
+   guess? Alternatives are on the bar, the full number rail is one tap
+   away, and `T`/`S` marker rails tag traps and secret doors to a
+   room. Fine-tune with the nudge d-pad (touch) or by dragging
+   (mouse). If nothing recognizable sits under the tap, the rail
+   simply opens to pick the label by hand.
 
 3. **Play.** Pan and pinch freely; pins keep constant screen size. Tap
    a room pin to open that area's text — the numbered headings of the
@@ -71,8 +74,8 @@ Layout:
 - `app/src/EditChrome.tsx` — action bar, rails, nudge pad, export panel
 - `app/src/mhtml.ts` — MHTML / HTML save parsing
 - `app/src/modules.ts` — module model + IndexedDB persistence
-- `app/src/recognize.ts` — digit recognition (template matching)
-- `app/src/fontbank.ts` — runtime generic-font templates + learning
+- `app/src/recognize.ts` — built-in map recognition (template matching)
+- `app/src/segment.ts` — upload OCR: segmentation, classification, learning
 - `app/src/pins.ts` — pin model + localStorage persistence
 - `app/src/mapdata.ts`, `app/src/glyphs.json`, `user_pins.json` — the
   built-in Sunless Citadel module

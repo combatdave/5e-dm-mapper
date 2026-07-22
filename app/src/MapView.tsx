@@ -20,8 +20,8 @@ import {
 import type { MapDef, ModuleDef } from "./modules";
 import { clamp, MAX_ZOOM, MIN_ZOOM, openArea, pinTitle } from "./helpers";
 import { rankGuesses, toGrayscale } from "./recognize";
-import type { Guess } from "./recognize";
-import { genericBanks, learnFromMatch } from "./fontbank";
+import { learnDigits, rankBySegmentation, segmentations } from "./segment";
+import type { SegGuess } from "./segment";
 import { PinStore } from "./pins";
 import type { Pin, PlaceResult } from "./pins";
 import { EditBar, NudgePad, Rail } from "./EditChrome";
@@ -49,7 +49,7 @@ interface Props {
   imgSrc: string;
   store: PinStore;
   editing: boolean;
-  onLearned?: (learned: NonNullable<ModuleDef["learned"]>) => void;
+  onLearned?: (learned: NonNullable<ModuleDef["learnedDigits"]>) => void;
 }
 
 export const MapView = forwardRef<MapHandle, Props>(function MapView(
@@ -160,15 +160,13 @@ export const MapView = forwardRef<MapHandle, Props>(function MapView(
     /* ----- edit mode: tap placement + confirm flow ----- */
     const closeRail = () => setChrome(c => ({ ...c, rail: null }));
 
-    function fullRailEntries(onPick: (sn: string, r: Guess | undefined) => void, ranked: Guess[]): RailEntry[] {
-      const byNum: Record<string, Guess> = {};
-      for (const r of ranked) byNum[r[1]] = r;
+    function fullRailEntries(onPick: (sn: string) => void): RailEntry[] {
       const entries: [string, string][] = ([["T", "T mark"], ["S", "S mark"]] as [string, string][])
         .concat(module.expected.slice().sort((a, b) => +a - +b).map(sn => [sn, sn] as [string, string]));
       return entries.map(([sn, txt]) => ({
         text: txt,
         cls: sn === "T" || sn === "S" ? "mkb" : undefined,
-        onTap: () => { closeRail(); onPick(sn, byNum[sn]); },
+        onTap: () => { closeRail(); onPick(sn); },
       }));
     }
 
@@ -183,42 +181,66 @@ export const MapView = forwardRef<MapHandle, Props>(function MapView(
       );
     }
 
-    function recognitionBanks() {
-      if (module.glyphs) return [module.glyphs];
-      return module.learned ? [module.learned, ...genericBanks()] : genericBanks();
-    }
+    /* a scored placement option for one label, from either recognizer */
+    interface Cand { label: string; score: number; x: number; y: number; learn?: SegGuess }
 
     function tapPlace(mx: number, my: number) {
       closeRail();
 
-      /* shared confirm-flow pieces */
-      let ranked: Guess[] = [];
-      function confirmBar(sn: string, learnGuess?: Guess) {
+      const byLabel = new Map<string, Cand>();
+      let ordered: Cand[] = [];
+      const placed = new Set(store.pins.filter(p => !p.mark).map(p => p.label));
+
+      if (!grayRef.current && img.complete && img.naturalWidth) {
+        try { grayRef.current = toGrayscale(img); } catch { /* tainted canvas */ }
+      }
+      const gray = grayRef.current;
+
+      if (gray && module.glyphs) {
+        /* built-in map: template matching with its own sampled glyphs */
+        const ranked = rankGuesses([module.glyphs], gray, W, H,
+          Math.round(mx), Math.round(my), module.expected, placed);
+        ordered = ranked.map(r => ({ label: r[1], score: r[0], x: r[2], y: r[3] }));
+      } else if (gray) {
+        /* upload: segment the glyphs under the tap, classify against
+           rendered fonts + whatever this map has taught us */
+        const segs = segmentations(gray, W, H, mx, my);
+        if (segs.length) {
+          const ranked = rankBySegmentation(segs, module.expected, placed,
+            module.learnedDigits ?? null);
+          ordered = ranked.map(r => ({ label: r.label, score: r.score, x: r.x, y: r.y, learn: r }));
+        }
+      }
+      for (const c of ordered) if (!byLabel.has(c.label)) byLabel.set(c.label, c);
+
+      /* confirming a label teaches the matcher this map's font */
+      const learnFrom = (label: string) => {
+        if (module.glyphs || !onLearned) return;
+        const c = byLabel.get(label);
+        if (!c?.learn) return;
+        const next = learnDigits(c.learn, module.learnedDigits ?? null);
+        if (next) onLearned(next);
+      };
+
+      function confirmBar(sn: string) {
         setChrome(c => ({
           ...c,
           bar: [
-            {
-              text: sn + " ✓",
-              onTap: () => {
-                closeRail();
-                if (learnGuess && !module.glyphs && grayRef.current && onLearned) {
-                  const learned = learnFromMatch(grayRef.current, W, H, learnGuess,
-                    recognitionBanks(), module.learned ?? null);
-                  if (learned && learned !== module.learned) onLearned(learned);
-                }
-              },
-              cls: "pri",
-            },
+            { text: sn + " ✓", onTap: () => { closeRail(); learnFrom(sn); }, cls: "pri" },
             { text: "123 ▾", onTap: openFullRail, keepOpen: true },
             { text: "cancel", onTap: () => { store.revert(curRef.current); curRef.current = null; closeRail(); }, cls: "del" },
           ],
           pad: { pinId: curRef.current!.id },
         }));
       }
-      function commit(sn: string, x: number, y: number, learnGuess?: Guess) {
+      function commitLabel(sn: string) {
         store.revert(curRef.current); closeRail();
-        curRef.current = store.setPin(sn, x, y, false);
-        confirmBar(sn, learnGuess);
+        const c = byLabel.get(sn);
+        const usePos = c && c.score >= (module.glyphs ? 0.5 : 0.4);
+        curRef.current = usePos
+          ? store.setPin(sn, c!.x, c!.y, false)
+          : store.setPin(sn, mx, my, false);
+        confirmBar(sn);
       }
       function commitMark(lb: string) {
         store.revert(curRef.current); closeRail();
@@ -231,62 +253,39 @@ export const MapView = forwardRef<MapHandle, Props>(function MapView(
       function openFullRail() {
         setChrome(c => ({
           ...c,
-          rail: fullRailEntries((sn, r) => {
+          rail: fullRailEntries(sn => {
             if (sn === "T" || sn === "S") { showMarkRail(sn); return; }
-            store.revert(curRef.current);
-            if (r && r[0] >= 0.5) {
-              curRef.current = store.setPin(sn, r[2], r[3], false);
-              confirmBar(sn, r);
-            } else {
-              curRef.current = store.setPin(sn, mx, my, false);
-              confirmBar(sn);
-            }
-          }, ranked),
+            commitLabel(sn);
+          }),
         }));
       }
 
-      /* try recognition; a tainted canvas (remote image) falls back
-         to picking the label from the rail */
-      let gray: Float32Array | null = grayRef.current;
-      if (!gray && img.complete && img.naturalWidth) {
-        try { gray = grayRef.current = toGrayscale(img); } catch { gray = null; }
-      }
-
-      if (gray) {
-        const placed = new Set(store.pins.filter(p => !p.mark).map(p => p.label));
-        ranked = rankGuesses(recognitionBanks(), gray, W, H,
-          Math.round(mx), Math.round(my), module.expected, placed);
-        const top = ranked.slice(0, 3);
-        curRef.current = store.setPin(top[0][1], top[0][2], top[0][3], false);
+      if (ordered.length) {
+        const top = ordered.slice(0, 3);
+        curRef.current = store.setPin(top[0].label, top[0].x, top[0].y, false);
         const items: BarItem[] = [{
-          text: top[0][1] + " ✓",
-          onTap: () => {
-            closeRail();
-            if (!module.glyphs && grayRef.current && onLearned) {
-              const learned = learnFromMatch(grayRef.current, W, H, top[0],
-                recognitionBanks(), module.learned ?? null);
-              if (learned && learned !== module.learned) onLearned(learned);
-            }
-          },
+          text: top[0].label + " ✓",
+          onTap: () => { closeRail(); learnFrom(top[0].label); },
           cls: "pri",
         }];
         for (const t of top.slice(1))
-          items.push({ text: t[1], onTap: () => commit(t[1], t[2], t[3], t), keepOpen: true });
+          items.push({ text: t.label, onTap: () => commitLabel(t.label), keepOpen: true });
         items.push({ text: "T", onTap: () => showMarkRail("T"), cls: "mkb", keepOpen: true });
         items.push({ text: "S", onTap: () => showMarkRail("S"), cls: "mkb", keepOpen: true });
         items.push({ text: "123 ▾", onTap: openFullRail, keepOpen: true });
         items.push({ text: "cancel", onTap: () => { store.revert(curRef.current); curRef.current = null; closeRail(); }, cls: "del" });
         setChrome(c => ({ ...c, bar: items, pad: { pinId: curRef.current!.id } }));
       } else {
-        /* manual: pick the label first, pin lands on the tap point */
+        /* nothing recognizable under the tap: pick the label first,
+           the pin lands on the tap point */
         setChrome(c => ({
           ...c,
           bar: null, pad: null,
-          rail: fullRailEntries((sn, _r) => {
+          rail: fullRailEntries(sn => {
             if (sn === "T" || sn === "S") { showMarkRail(sn); return; }
             curRef.current = store.setPin(sn, mx, my, false);
             confirmBar(sn);
-          }, []),
+          }),
         }));
       }
     }
