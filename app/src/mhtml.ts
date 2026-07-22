@@ -209,10 +209,12 @@ function extractAreas(doc: Document, baseUrl: string): Record<string, AreaDigest
         digest.readAloud = txt.slice(0, 400);
         continue;
       }
-      /* WotC formats hazards as bold lead-in paragraphs: "Trap. …",
-         "Secret Door. …" — reliable to pick out of D&D Beyond text */
-      if (/^traps?[.:]/i.test(txt)) traps.push(txt);
-      else if (/^secret\b/i.test(txt)) secrets.push(txt);
+      /* WotC formats hazards as bold lead-in sentences before the
+         first period: "Trap.", "Arrow Trap.", "Poisoned Needle
+         Traps.", "Secret Door.", "Secret Trapdoor." … */
+      const lead = ((txt.match(/^([^.:!?]{1,48})[.:]/) || [])[1] || "").trim();
+      if (/\btraps?$/i.test(lead)) traps.push(txt);
+      else if (/\bsecret\b/i.test(lead)) secrets.push(txt);
       textParts.push(txt);
       /* creatures: monster links, with a count just before when present */
       b.querySelectorAll('a[href*="/monsters/"]').forEach(a => {

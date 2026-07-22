@@ -4,7 +4,7 @@
  */
 import { useRef, useState } from "react";
 import type { ModuleDef } from "./modules";
-import { buildModule, importPageBundle, writeImportedPins } from "./modules";
+import { buildModule, exportAllBundles, parseBundleFile, writeImportedPins } from "./modules";
 import { SaveImporter } from "./SaveImport";
 
 export function Home({ modules, onOpen, onCreate, onDelete, onRename }: {
@@ -20,14 +20,28 @@ export function Home({ modules, onOpen, onCreate, onDelete, onRename }: {
   async function handlePageFile(file: File) {
     setPageError("");
     try {
-      const { module, pins } = importPageBundle(await file.text());
-      if (modules.some(m => m.id === module.id) &&
-          !confirm(`“${module.title}” already exists — replace it (pins included)?`)) return;
-      writeImportedPins(module.id, pins);
-      onCreate(module);
+      const pages = parseBundleFile(await file.text());
+      const clashes = pages.filter(p => modules.some(m => m.id === p.module.id)).map(p => p.module.title);
+      if (clashes.length &&
+          !confirm(`Replace ${clashes.length} existing page${clashes.length === 1 ? "" : "s"} (pins included)?\n${clashes.join("\n")}`))
+        return;
+      for (const { module, pins } of pages) {
+        writeImportedPins(module.id, pins);
+        onCreate(module);
+      }
     } catch (e) {
       setPageError(e instanceof Error ? e.message : String(e));
     }
+  }
+
+  function exportAll() {
+    const json = exportAllBundles(modules);
+    const a = document.createElement("a");
+    const blob = new Blob([json], { type: "application/json" });
+    a.href = URL.createObjectURL(blob);
+    a.download = "dm-mapper-pages.dmmap.json";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
 
   return (
@@ -77,9 +91,14 @@ export function Home({ modules, onOpen, onCreate, onDelete, onRename }: {
             buttonClass="btn big"
             onPicked={(page, picked) => onCreate(buildModule(page, picked))}
           />
-          <button className="btn" onClick={() => pageFileRef.current?.click()}>
-            ⇞ import a page file (.dmmap.json)
-          </button>
+          <div className="uprow">
+            <button className="btn" onClick={() => pageFileRef.current?.click()}>
+              ⇞ import pages (.dmmap.json)
+            </button>
+            <button className="btn" onClick={exportAll}>
+              ⤓ export all
+            </button>
+          </div>
           <input ref={pageFileRef} type="file" accept=".json,application/json" hidden
             onChange={e => { const f = e.target.files?.[0]; if (f) void handlePageFile(f); e.target.value = ""; }} />
           {pageError && <p className="uperror">{pageError}</p>}

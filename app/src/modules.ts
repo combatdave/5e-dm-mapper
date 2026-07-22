@@ -7,6 +7,7 @@
  */
 import { BASE_PINS, EXPECTED, HREFS, MAP, MODULE_URL, NAMES } from "./mapdata";
 import type { AreaDigest, PageHeading, PageImage } from "./mhtml";
+import { PinStore } from "./pins";
 
 export interface MapDef {
   title: string;
@@ -139,10 +140,20 @@ export const pinStoreKey = (moduleId: string, mapIndex: number) =>
 
 export type PinsByMap = Record<string, Record<string, [number, number][]>>;
 
-export function exportPageBundle(m: ModuleDef, pinsByMap: PinsByMap): string {
-  return JSON.stringify({
-    format: "5e-dm-mapper-page",
-    version: 1,
+/* effective pins for any page, whether it's open or not */
+export function collectPinsByMap(m: ModuleDef): PinsByMap {
+  const out: PinsByMap = {};
+  m.maps.forEach((map, i) => {
+    const store = new PinStore(pinStoreKey(m.id, i), i === 0 ? (m.basePins ?? {}) : {}, map.width, map.height);
+    const labels: Record<string, [number, number][]> = {};
+    for (const p of store.pins) (labels[p.label] ||= []).push([Math.round(p.x), Math.round(p.y)]);
+    if (Object.keys(labels).length) out[String(i)] = labels;
+  });
+  return out;
+}
+
+function pageEntry(m: ModuleDef, pinsByMap: PinsByMap) {
+  return {
     id: m.id,
     title: m.title,
     sourceUrl: m.sourceUrl,
@@ -160,13 +171,33 @@ export function exportPageBundle(m: ModuleDef, pinsByMap: PinsByMap): string {
       bundled: x.url?.startsWith("data:") || undefined,
     })),
     pins: pinsByMap,
+  };
+}
+
+export function exportPageBundle(m: ModuleDef, pinsByMap: PinsByMap): string {
+  return JSON.stringify({ format: "5e-dm-mapper-page", version: 1, ...pageEntry(m, pinsByMap) }, null, 1);
+}
+
+export function exportAllBundles(modules: ModuleDef[]): string {
+  return JSON.stringify({
+    format: "5e-dm-mapper-pages",
+    version: 1,
+    pages: modules.map(m => pageEntry(m, collectPinsByMap(m))),
   }, null, 1);
 }
 
-export function importPageBundle(json: string): { module: ModuleDef; pins: PinsByMap } {
+/* one file, either format: a single page or the whole library */
+export function parseBundleFile(json: string): { module: ModuleDef; pins: PinsByMap }[] {
   const b = JSON.parse(json);
-  if (b?.format !== "5e-dm-mapper-page" || !Array.isArray(b.maps) || !b.id)
-    throw new Error("Not a page file — expected an export from “⤓ export page”.");
+  if (b?.format === "5e-dm-mapper-page") return [entryToPage(b)];
+  if (b?.format === "5e-dm-mapper-pages" && Array.isArray(b.pages))
+    return b.pages.map((p: unknown) => entryToPage(p as Record<string, unknown>));
+  throw new Error("Not a page file — expected an export from “⤓ export page” or “⤓ export all”.");
+}
+
+function entryToPage(b: Record<string, any>): { module: ModuleDef; pins: PinsByMap } {
+  if (!Array.isArray(b?.maps) || !b?.id)
+    throw new Error("Malformed page entry in file.");
   const module: ModuleDef = sanitizeModule({
     id: String(b.id),
     title: String(b.title || "Imported page"),
@@ -295,11 +326,3 @@ export async function deleteModule(id: string): Promise<void> {
   });
 }
 
-/* remember which module was open so the table view comes right back */
-const LAST_KEY = "dm-mapper:last";
-export function getLastModuleId(): string {
-  try { return localStorage.getItem(LAST_KEY) || BUILTIN.id; } catch { return BUILTIN.id; }
-}
-export function setLastModuleId(id: string) {
-  try { localStorage.setItem(LAST_KEY, id); } catch { /* private mode */ }
-}

@@ -146,7 +146,7 @@ export function ModuleView({ module, onBack, onUpdate }: {
             <button id="exportBtn" className="btn" onClick={exportPins}>⤓ export pins</button>
             <button id="clearBtn" className="btn danger" onClick={clearPins}>✖ clear my pins</button>
             <button id="editBtn" className="btn" onClick={() => setEditing(on => !on)}>
-              {editing ? "✓ done" : "✎ edit pins"}
+              {editing ? "✓ done" : "✎ edit"}
             </button>
           </div>
         </div>

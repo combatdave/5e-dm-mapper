@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import type { ModuleDef } from "./modules";
 import {
-  BUILTIN, deleteModule, getLastModuleId, listSavedModules, saveModule,
-  setLastModuleId, setTitleOverride, titleOverrides,
+  BUILTIN, deleteModule, listSavedModules, saveModule,
+  setTitleOverride, titleOverrides,
 } from "./modules";
 import { ModuleView } from "./ModuleView";
 import { Home } from "./Home";
@@ -23,10 +23,6 @@ export default function App() {
       const titles = titleOverrides();
       for (const m of all) if (titles[m.id]) m.title = titles[m.id];
       setModules(all);
-      /* come straight back to the last-used module — at the table you
-         want the map, not a menu */
-      const last = getLastModuleId();
-      if (all.some(m => m.id === last)) setOpenId(last);
       setReady(true);
     })();
   }, []);
@@ -43,7 +39,7 @@ export default function App() {
     return () => document.removeEventListener("click", block, true);
   }, []);
 
-  const open = (id: string) => { setLastModuleId(id); setOpenId(id); };
+  const open = (id: string) => setOpenId(id);
 
   const create = (m: ModuleDef) => {
     void saveModule(m);

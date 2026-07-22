@@ -20,7 +20,10 @@ downloading it onto a tablet works just as well.
    come preselected, including the linked **"View Player Version"**
    maps (those load from the CDN, so they need to be online). Pages
    can be renamed from the library (✎), persist in IndexedDB (map
-   images included), and the app reopens the last-used one directly.
+   images included). The library is the app's home screen; it also
+   has **⤓ export all** / **⇞ import pages** for moving every page
+   between machines in one `.dmmap.json` (the import button accepts
+   single-page files too).
 
    A save often holds several maps (the Citadel's fortress and grove
    levels share one page): inside a page, edit mode has **⇪ import
@@ -30,7 +33,7 @@ downloading it onto a tablet works just as well.
    selected attaches the text alone (that's how the built-in page
    gets its reader).
 
-2. **Annotate.** In **edit pins** mode, tap the map and a focused
+2. **Annotate.** In **edit** mode, tap the map and a focused
    input opens: type the room number and press enter — the pin lands
    on the tap point. Type `t` or `s` for a trap / secret-door marker:
    it links itself to the nearest room pin (or type `t7` to target
@@ -44,9 +47,10 @@ downloading it onto a tablet works just as well.
    and rooms with creatures carry a small red dot.
 
    **Hover a pin** (long-press on touch) for the at-a-glance card:
-   read-aloud opener, creatures with counts, DCs, and any "Trap." /
-   "Secret Door." lead-in paragraphs from the text — hovering a T/S
-   marker shows its room's hazards directly.
+   read-aloud opener, creatures with counts, DCs, and hazard lead-in
+   paragraphs ("Arrow Trap.", "Secret Door.", …) from the text —
+   hovering a T/S marker shows its room's hazards directly. Re-run
+   "import save" (text only) on older pages to refresh their digests.
 
    **Click a pin** (or a pinless chip) and the area's own section
    from the saved page opens in a book-styled reader panel — no more

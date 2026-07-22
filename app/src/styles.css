@@ -91,6 +91,8 @@ main.home{gap:14px}
   color:var(--red);font:600 14px system-ui;cursor:pointer;
 }
 .upload{display:flex;flex-direction:column;gap:8px}
+.uprow{display:flex;gap:8px}
+.uprow .btn{flex:1}
 .btn.big{padding:14px;font-size:14px;width:100%}
 .btn.pri{border-color:var(--green);color:var(--green)}
 .uperror{color:var(--red);font-size:12.5px;margin:0}
