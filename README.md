@@ -6,7 +6,13 @@ room — that room's text opens in your D&D Beyond copy of the module.
 
 **Maps:**
 
-- [`sunless-citadel.html`](sunless-citadel.html) — The Sunless Citadel, Fortress Level
+- [`dist/index.html`](dist/index.html) — The Sunless Citadel, Fortress Level
+
+The app is served from `dist/` by GitHub Pages
+(`.github/workflows/pages.yml` deploys it on every push to `main`;
+one-time setup: repo **Settings → Pages → Source: GitHub Actions**).
+The file is fully self-contained, so downloading it onto a tablet works
+just as well.
 
 ## Objectives
 
@@ -46,10 +52,10 @@ for everyone:
    browsers are picky about all three). It maps each label to image-pixel
    coordinates, e.g. `{"12": [[86, 801]], "T24": [[201, 649]]}`.
 2. Run the bake script — it replaces all baked pins in the file with
-   the export's contents:
+   the export's contents, then commit and push to redeploy:
 
    ```
-   python3 bake_pins.py user_pins.json sunless-citadel.html
+   python3 bake_pins.py user_pins.json dist/index.html
    ```
 
 Baked-in state right now: **complete** — all 41 Fortress Level rooms
