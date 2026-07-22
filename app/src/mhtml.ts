@@ -19,11 +19,22 @@ export interface PageHeading {
   text: string;
 }
 
+/* at-a-glance digest of one numbered area, extracted from the text
+   between its heading and the next */
+export interface AreaDigest {
+  readAloud?: string;                    // boxed text, trimmed
+  creatures: { name: string; href: string; count?: number }[];
+  dcs: string[];                         // "DC 15 Wisdom (Perception)"
+  treasure?: string;
+  text?: string;                         // plain text (cards + search)
+}
+
 export interface ParsedPage {
   title: string;
   sourceUrl: string;       // "" when unknown
   images: PageImage[];
   headings: PageHeading[];
+  areas: Record<string, AreaDigest>;     // area number -> digest
 }
 
 export async function parseSavedPage(file: File): Promise<ParsedPage> {
@@ -151,7 +162,75 @@ function parseHtmlText(html: string, sourceUrl: string, fallbackTitle: string): 
     sourceUrl: url,
     images,
     headings,
+    areas: extractAreas(doc, url),
   };
+}
+
+/* ---------- area digests ---------------------------------------------- */
+
+const NUM_WORDS: Record<string, number> = {
+  a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5,
+  six: 6, seven: 7, eight: 8, nine: 9, ten: 10, twelve: 12,
+};
+
+/* "12. Larder" headings bound each area's slice of the document */
+function extractAreas(doc: Document, baseUrl: string): Record<string, AreaDigest> {
+  const areas: Record<string, AreaDigest> = {};
+  const isHeading = (el: Element) => /^H[1-6]$/.test(el.tagName) && el.id;
+  const all = [...doc.body.querySelectorAll("*")];
+  const headingIdx: { i: number; num: string | null }[] = [];
+  for (let i = 0; i < all.length; i++) {
+    if (!isHeading(all[i])) continue;
+    const m = (all[i].textContent || "").trim().match(/^(?:area\s+)?(\d{1,3})[.:)\-\u2013\u2014]?\s+.{2,}/i);
+    headingIdx.push({ i, num: m ? String(+m[1]) : null });
+  }
+  for (let h = 0; h < headingIdx.length; h++) {
+    const { i, num } = headingIdx[h];
+    if (!num || areas[num]) continue;
+    const end = h + 1 < headingIdx.length ? headingIdx[h + 1].i : all.length;
+    /* block elements strictly between the two headings, top-level only */
+    const blocks: Element[] = [];
+    for (let j = i + 1; j < end; j++) {
+      const el = all[j];
+      if (!/^(P|UL|OL|BLOCKQUOTE|TABLE|ASIDE|DIV|FIGURE)$/.test(el.tagName)) continue;
+      if (blocks.some(b => b.contains(el))) continue;
+      blocks.push(el);
+    }
+    const digest: AreaDigest = { creatures: [], dcs: [] };
+    const textParts: string[] = [];
+    for (const b of blocks) {
+      const txt = (b.textContent || "").trim().replace(/\s+/g, " ");
+      if (!txt) continue;
+      const cls = (b.className || "").toString();
+      if (!digest.readAloud && (b.tagName === "BLOCKQUOTE" || /read-?aloud/i.test(cls)))
+        digest.readAloud = txt.slice(0, 400);
+      else if (!digest.treasure && /^treasure\b/i.test(txt))
+        digest.treasure = txt.slice(0, 300);
+      else
+        textParts.push(txt);
+      /* creatures: monster links, with a count just before when present */
+      b.querySelectorAll('a[href*="/monsters/"]').forEach(a => {
+        const name = (a.textContent || "").trim();
+        if (!name || name.length > 40) return;
+        let href = a.getAttribute("href") || "";
+        try { href = baseUrl ? new URL(href, baseUrl).href : href; } catch { /* raw */ }
+        const before = (a.previousSibling?.textContent || "").trim().split(/\s+/).slice(-1)[0] || "";
+        const count = /^\d+$/.test(before) ? +before : NUM_WORDS[before.toLowerCase()];
+        const seen = digest.creatures.find(c => c.name.toLowerCase() === name.toLowerCase());
+        if (seen) { if (count && !(seen.count && seen.count >= count)) seen.count = count; }
+        else if (digest.creatures.length < 8) digest.creatures.push({ name, href, count });
+      });
+    }
+    const flat = textParts.join(" ");
+    for (const m of flat.matchAll(/DC\s*\d+\s*(?:\([^)]{0,40}\)|[A-Z][a-z]+(?:\s*\([^)]{0,40}\))?)?/g)) {
+      const dc = m[0].replace(/\s+/g, " ").trim();
+      if (digest.dcs.length < 6 && !digest.dcs.includes(dc)) digest.dcs.push(dc);
+    }
+    digest.text = flat.slice(0, 2000) || undefined;
+    if (digest.readAloud || digest.creatures.length || digest.dcs.length || digest.treasure || digest.text)
+      areas[num] = digest;
+  }
+  return areas;
 }
 
 /* ---------- decoding helpers ------------------------------------------ */

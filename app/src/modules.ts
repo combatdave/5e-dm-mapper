@@ -6,7 +6,7 @@
  * orphaned).
  */
 import { BASE_PINS, EXPECTED, HREFS, MAP, MODULE_URL, NAMES } from "./mapdata";
-import type { PageHeading, PageImage } from "./mhtml";
+import type { AreaDigest, PageHeading, PageImage } from "./mhtml";
 
 export interface MapDef {
   title: string;
@@ -25,6 +25,7 @@ export interface ModuleDef {
   hrefs: Record<string, string>;    // area number -> deep link
   expected: string[];               // labels offered on the pin rail
   maps: MapDef[];
+  areas?: Record<string, AreaDigest>;   // per-area digests for hover cards
   builtin?: boolean;
   basePins?: Record<string, number[][]>;
 }
@@ -53,7 +54,7 @@ export function numberedArea(text: string): { num: string; name: string } | null
 }
 
 export function buildModule(
-  page: { title: string; sourceUrl: string; headings: PageHeading[] },
+  page: { title: string; sourceUrl: string; headings: PageHeading[]; areas: Record<string, AreaDigest> },
   picked: { image: PageImage; width: number; height: number }[],
 ): ModuleDef {
   const names: Record<string, string> = {};
@@ -74,6 +75,7 @@ export function buildModule(
     names,
     hrefs,
     expected: expected.length ? expected : GENERIC_EXPECTED,
+    areas: page.areas,
     maps: picked.map((p, i) => ({
       title: (picked.length > 1 ? `Map ${i + 1}` : "Map") + (p.image.player ? " · player" : ""),
       width: p.width,

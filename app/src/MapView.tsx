@@ -19,6 +19,8 @@ import { PinStore } from "./pins";
 import type { Pin } from "./pins";
 import { EditBar, NudgePad, PlaceInput } from "./EditChrome";
 import type { BarItem } from "./EditChrome";
+import { AreaCard } from "./AreaCard";
+import type { NearbyRoom } from "./AreaCard";
 
 export interface MapHandle {
   locate(label: string): boolean;
@@ -54,11 +56,13 @@ export const MapView = forwardRef<MapHandle, Props>(function MapView(
   useSyncExternalStore(store.subscribe, store.getVersion);
 
   const [chrome, setChrome] = useState<ChromeState>(NO_CHROME);
+  const [card, setCard] = useState<{ pinId: number; px: number; py: number } | null>(null);
 
   const editingRef = useRef(editing);
   useEffect(() => {
     editingRef.current = editing;
     setChrome(NO_CHROME);          // entering or leaving edit mode resets the chrome
+    setCard(null);
   }, [editing]);
 
   /* ----- viewer state (refs: no re-render while panning) ----- */
@@ -151,6 +155,40 @@ export const MapView = forwardRef<MapHandle, Props>(function MapView(
       setChrome(c => ({ ...c, bar: null, pad: null, place: { x: mx, y: my } }));
     }
 
+    /* ----- at-a-glance card: hover (mouse) / long-press (touch) ----- */
+    let hoverTimer: number | null = null;
+    let hideTimer: number | null = null;
+    let lpTimer: number | null = null;
+    let lpFired = false;
+
+    function openCardFor(el: Element) {
+      const id = Number((el as HTMLElement).dataset.id);
+      const pin = store.byId(id);
+      if (!pin) return;
+      setCard({ pinId: id, px: pin.x * v.s + v.tx, py: pin.y * v.s + v.ty });
+    }
+    const clearHover = () => { if (hoverTimer !== null) { clearTimeout(hoverTimer); hoverTimer = null; } };
+    const clearLp = () => { if (lpTimer !== null) { clearTimeout(lpTimer); lpTimer = null; } };
+    const hideCard = () => setCard(null);
+
+    const onOver = (e: PointerEvent) => {
+      if (e.pointerType !== "mouse" || editingRef.current) return;
+      const pinEl = (e.target as Element).closest?.("a.pin");
+      if (!pinEl) return;
+      if (hideTimer !== null) { clearTimeout(hideTimer); hideTimer = null; }
+      clearHover();
+      hoverTimer = window.setTimeout(() => openCardFor(pinEl), 220);
+    };
+    const onOut = (e: PointerEvent) => {
+      if (e.pointerType !== "mouse") return;
+      if (!(e.target as Element).closest?.("a.pin")) return;
+      clearHover();
+      if (hideTimer !== null) clearTimeout(hideTimer);
+      hideTimer = window.setTimeout(hideCard, 250);   // grace to reach the card
+    };
+    vp.addEventListener("pointerover", onOver);
+    vp.addEventListener("pointerout", onOut);
+
     /* ----- listeners, in the same order as always: viewer first,
        then editor (its pointerup runs on the capture phase) ----- */
     const prevent = (e: Event) => e.preventDefault();
@@ -158,7 +196,7 @@ export const MapView = forwardRef<MapHandle, Props>(function MapView(
       vp.addEventListener(ev, prevent, true));
 
     const onWheel = (e: WheelEvent) => {
-      e.preventDefault(); stopFly();
+      e.preventDefault(); stopFly(); hideCard();
       const r = vp.getBoundingClientRect();
       zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015));
     };
@@ -174,9 +212,15 @@ export const MapView = forwardRef<MapHandle, Props>(function MapView(
 
     const onViewDown = (e: PointerEvent) => {
       stopFly();
+      hideCard(); clearHover();
       ptrs.set(e.pointerId, [e.clientX, e.clientY]);
       moved = 0;
       tap = (ptrs.size === 1 && (e.target as Element).closest) ? (e.target as Element).closest("a.pin") : null;
+      clearLp();
+      if (tap && e.pointerType === "touch" && !editingRef.current) {
+        const el = tap;
+        lpTimer = window.setTimeout(() => { lpFired = true; openCardFor(el); }, 480);
+      }
       if (ptrs.size === 2) {
         const p = [...ptrs.values()];
         pinch0 = { d: Math.hypot(p[0][0] - p[1][0], p[0][1] - p[1][1]), s: v.s };
@@ -190,6 +234,7 @@ export const MapView = forwardRef<MapHandle, Props>(function MapView(
       if (!ptrs.has(e.pointerId)) return;
       const prev = ptrs.get(e.pointerId)!;
       ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+      if (moved > 6) clearLp();
       if (ptrs.size === 1) {
         v.tx += e.clientX - prev[0]; v.ty += e.clientY - prev[1];
         moved += Math.abs(e.clientX - prev[0]) + Math.abs(e.clientY - prev[1]);
@@ -210,6 +255,8 @@ export const MapView = forwardRef<MapHandle, Props>(function MapView(
 
     const onViewUp = (e: PointerEvent) => {
       ptrs.delete(e.pointerId); pinch0 = null;
+      clearLp();
+      if (lpFired) { lpFired = false; tap = null; return; }   // long-press showed the card
       if (e.type === "pointerup" && tap && moved <= 6 && !editingRef.current) {
         const h = tap.getAttribute("href");
         if (h) openArea(h);
@@ -292,6 +339,10 @@ export const MapView = forwardRef<MapHandle, Props>(function MapView(
         vp.removeEventListener(ev, prevent, true));
       vp.removeEventListener("wheel", onWheel);
       vp.removeEventListener("dblclick", onDblClick);
+      clearHover(); clearLp();
+      if (hideTimer !== null) clearTimeout(hideTimer);
+      vp.removeEventListener("pointerover", onOver);
+      vp.removeEventListener("pointerout", onOut);
       vp.removeEventListener("pointerdown", onViewDown);
       vp.removeEventListener("pointermove", onViewMove);
       vp.removeEventListener("pointerup", onViewUp);
@@ -345,6 +396,37 @@ export const MapView = forwardRef<MapHandle, Props>(function MapView(
 
   const padPin = chrome.pad ? store.byId(chrome.pad.pinId) : null;
 
+  /* at-a-glance card contents + placement (clamped inside the viewport) */
+  const cardData = (() => {
+    if (!card) return null;
+    const pin = store.byId(card.pinId);
+    if (!pin) return null;
+    const num = pin.label.replace(/^[TS]/, "");
+    const digest = module.areas?.[num];
+    const R = map.width * 0.16;
+    const nearby: NearbyRoom[] = store.pins
+      .filter(p => p.id !== pin.id && p.label !== pin.label)
+      .map(p => ({ p, d: Math.abs(p.x - pin.x) + Math.abs(p.y - pin.y) }))
+      .filter(({ d }) => d <= R)
+      .sort((a, b) => a.d - b.d)
+      .slice(0, 4)
+      .map(({ p }) => {
+        const n = p.label.replace(/^[TS]/, "");
+        return {
+          label: p.label,
+          name: module.names[n],
+          mark: p.mark,
+          creatureCount: module.areas?.[n]?.creatures.reduce((s, c) => s + (c.count || 1), 0) ?? 0,
+        };
+      });
+    const vpEl = vpRef.current;
+    const vw = vpEl?.clientWidth || 600, vh = vpEl?.clientHeight || 400;
+    const left = clamp(card.px - 140, 8, Math.max(8, vw - 288));
+    const above = card.py > vh * 0.45;
+    const top = above ? clamp(card.py - 16, 100, vh - 10) : clamp(card.py + 18, 8, vh - 80);
+    return { pin, num, digest, nearby, left, top, above };
+  })();
+
   return (
     <div className="map">
       <div className="viewport" ref={vpRef}>
@@ -387,6 +469,22 @@ export const MapView = forwardRef<MapHandle, Props>(function MapView(
         />
       )}
       {padPin && <NudgePad label={padPin.label} onNudge={(dx, dy) => store.nudge(padPin.id, dx, dy)} />}
+      {cardData && (
+        <AreaCard
+          num={cardData.num}
+          name={module.names[cardData.num]}
+          digest={cardData.digest}
+          href={hrefFor(cardData.pin) || undefined}
+          nearby={cardData.nearby}
+          left={cardData.left}
+          top={cardData.top}
+          above={cardData.above}
+          onOpenText={() => { const h = hrefFor(cardData.pin); if (h) openArea(h); }}
+          onOpenCreature={h => openArea(h)}
+          onLocate={l => { setCard(null); methods.current.locate(l); }}
+          onClose={() => setCard(null)}
+        />
+      )}
     </div>
   );
 });

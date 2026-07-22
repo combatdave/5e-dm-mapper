@@ -38,6 +38,15 @@ downloading it onto a tablet works just as well.
    index: tapping one flies the map to the pin and pulses it (or opens
    the text directly if the room has no pin yet).
 
+   **Hover a pin** (long-press on touch) for the at-a-glance card:
+   the area's read-aloud opener, its creatures with counts (tap one
+   for the stat block), DCs, the treasure line, and a "nearby" strip
+   of adjacent rooms with their threat counts — scout what the party
+   might face soon without opening anything. The digests are
+   extracted from the saved page's text at upload time, so they work
+   offline; the built-in page has no stored text (upload your own
+   save of the same page to get cards for it).
+
 4. **Save & export.** Pins live per-device in `localStorage`
    (`edpins:<module id>`, unchanged from earlier builds). **⤓ export
    pins** shows the JSON with copy / share / download; **✖ clear my
@@ -66,6 +75,7 @@ Layout:
 - `app/src/Home.tsx` — library, upload, map-image picker
 - `app/src/ModuleView.tsx` — one module: header, chips, map tabs
 - `app/src/MapView.tsx` — pan/zoom viewport, pins, the whole edit mode
+- `app/src/AreaCard.tsx` — hover/long-press at-a-glance card
 - `app/src/EditChrome.tsx` — action bar, typed-input placement, nudge pad, export panel
 - `app/src/mhtml.ts` — MHTML / HTML save parsing
 - `app/src/modules.ts` — module model + IndexedDB persistence
@@ -75,5 +85,9 @@ Layout:
 
 ## Ideas / not done yet
 
-- Grove Level for the built-in module (its area links are already in
-  the data — or just re-save the page and upload it).
+- Quick wins: search across room names/text with fly-to; type a
+  number outside edit mode to jump to that room.
+- Session layer: draggable party marker, visited/cleared/alerted room
+  states, per-room notes surfaced in the hover card, new-session reset.
+- Player second screen: a synced window showing the player map,
+  driven by the DM's pan/zoom (BroadcastChannel); fog-of-war later.

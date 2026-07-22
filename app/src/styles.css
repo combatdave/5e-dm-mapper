@@ -248,5 +248,40 @@ body.haspad .edbar{left:auto;right:10px;transform:none}
   border-radius:8px;padding:9px 10px;font:700 14px system-ui;white-space:nowrap;cursor:pointer;
 }
 
+/* ============================================================
+   at-a-glance area card (pin hover / long-press)
+   ============================================================ */
+.areacard{
+  position:absolute;z-index:30;width:280px;max-height:290px;overflow-y:auto;
+  background:#1b2129f5;border:1px solid var(--line);border-radius:12px;
+  padding:10px 12px;display:flex;flex-direction:column;gap:7px;
+  font-size:12.5px;line-height:1.45;box-shadow:0 6px 24px #0009;
+}
+.areacard.above{transform:translateY(-100%)}
+.ac-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.ac-head b{color:var(--bright);font-size:13px}
+.ac-open{
+  background:var(--bg);border:1px solid var(--line);border-radius:7px;color:var(--text);
+  font:600 11px system-ui;padding:3px 8px;cursor:pointer;white-space:nowrap;
+}
+.ac-open:hover{border-color:var(--accent)}
+.ac-read{margin:0;color:var(--text);font-style:italic;
+  display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.ac-row{display:flex;flex-wrap:wrap;gap:4px}
+.ac-chip{
+  background:var(--bg);border:1px solid var(--line);border-radius:9px;color:var(--text);
+  font:600 11px system-ui;padding:3px 8px;cursor:pointer;
+}
+.ac-creature{border-color:var(--red);color:#ff9aa8}
+.ac-creature:hover{background:var(--red);color:var(--bg)}
+.ac-dc{border-color:#5a91f5;color:#9dbdf8;cursor:default}
+.ac-mark{border-color:var(--gold);color:var(--gold)}
+.ac-treasure{margin:0;color:var(--gold);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ac-none{margin:0;color:var(--dim)}
+.ac-nearby{display:flex;flex-wrap:wrap;gap:4px;align-items:center;
+  border-top:1px solid var(--line);padding-top:7px}
+.ac-nearby>span{color:var(--dim);font-size:10.5px;text-transform:uppercase;letter-spacing:1px}
+
 /* keyboard focus */
 button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}

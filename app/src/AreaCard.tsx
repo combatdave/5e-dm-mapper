@@ -1,0 +1,72 @@
+/* At-a-glance card for one area, shown on pin hover (mouse) or
+ * long-press (touch): read-aloud opener, creatures, checks, treasure,
+ * and what's nearby on the map — so the DM can scout what the party
+ * might face soon without opening anything.
+ */
+import type { AreaDigest } from "./mhtml";
+
+export interface NearbyRoom {
+  label: string;
+  name?: string;
+  mark: boolean;
+  creatureCount: number;
+}
+
+export function AreaCard({ num, name, digest, href, nearby, left, top, above, onOpenText, onOpenCreature, onLocate, onClose }: {
+  num: string;
+  name?: string;
+  digest?: AreaDigest;
+  href?: string;
+  nearby: NearbyRoom[];
+  left: number;
+  top: number;
+  above: boolean;
+  onOpenText: () => void;
+  onOpenCreature: (href: string) => void;
+  onLocate: (label: string) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className={"areacard" + (above ? " above" : "")}
+      style={{ left, top }}
+      onPointerDown={e => e.stopPropagation()}
+      onPointerUp={e => e.stopPropagation()}
+      onPointerLeave={onClose}
+    >
+      <div className="ac-head">
+        <b>{num}{name ? `. ${name}` : ""}</b>
+        {href && <button className="ac-open" onClick={onOpenText}>open ↗</button>}
+      </div>
+      {digest?.readAloud && <p className="ac-read">{digest.readAloud}</p>}
+      {digest?.creatures.length ? (
+        <div className="ac-row">
+          {digest.creatures.map(c => (
+            <button key={c.href + c.name} className="ac-chip ac-creature"
+              onClick={() => onOpenCreature(c.href)}>
+              {c.count ? `${c.count}× ` : ""}{c.name}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {digest?.dcs.length ? (
+        <div className="ac-row">
+          {digest.dcs.map(dc => <span key={dc} className="ac-chip ac-dc">{dc}</span>)}
+        </div>
+      ) : null}
+      {digest?.treasure && <p className="ac-treasure">{digest.treasure}</p>}
+      {!digest && <p className="ac-none">no saved text for this area{href ? " — tap the pin to open it" : ""}</p>}
+      {nearby.length ? (
+        <div className="ac-nearby">
+          <span>nearby</span>
+          {nearby.map(n => (
+            <button key={n.label} className={"ac-chip" + (n.mark ? " ac-mark" : "")}
+              onClick={() => onLocate(n.label)}>
+              {n.label}{n.creatureCount ? ` ☠${n.creatureCount}` : ""}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
