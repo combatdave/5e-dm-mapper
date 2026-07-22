@@ -45,18 +45,18 @@ for everyone:
    copy / share / download buttons (each with fallbacks, since tablet
    browsers are picky about all three). It maps each label to image-pixel
    coordinates, e.g. `{"12": [[86, 801]], "T24": [[201, 649]]}`.
-2. Add matching `<a class="pin" …>` elements inside the map's
-   `<div class="world">`, converting coordinates to percentages of the
-   image size (450 × 932 for the Fortress Level).
+2. Run the bake script — it replaces all baked pins in the file with
+   the export's contents:
 
-Baked-in state right now: no pins yet — the old auto-detected set was
-scrapped and placement is being redone by hand in edit mode. The header
-count keeps score; chips with a dimmed number are rooms that still lack
-a pin (tapping them opens the area text directly).
+   ```
+   python3 bake_pins.py user_pins.json sunless-citadel.html
+   ```
+
+Baked-in state right now: **complete** — all 41 Fortress Level rooms
+(a few numbers appear at more than one spot on the map and get a pin at
+each) plus 11 trap/secret-door markers, hand-placed. The canonical
+export lives in [`user_pins.json`](user_pins.json).
 
 ## Ideas / not done yet
 
-- Place and bake in the Fortress Level pin set.
 - Grove Level map (area links for rooms 42–56 are already in the data).
-- A small script to bake `user_pins.json` back into the HTML
-  automatically.
