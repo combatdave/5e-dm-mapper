@@ -87,6 +87,40 @@ export function buildModule(
   };
 }
 
+/* merge a (re-)uploaded save into an existing page: text, names and
+   links refresh; picked maps append as new tabs (byte-identical maps
+   are skipped); pins are untouched — they key off the page id and
+   map index */
+export function mergeSaveIntoModule(
+  m: ModuleDef,
+  page: { title: string; sourceUrl: string; headings: PageHeading[]; areas: Record<string, AreaDigest> },
+  picked: { image: PageImage; width: number; height: number }[],
+): ModuleDef {
+  const fresh = buildModule(page, picked);
+  const maps = [...m.maps];
+  for (const nm of fresh.maps) {
+    const dup = maps.some(x => {
+      if (nm.url && x.url) return x.url === nm.url;
+      if (x.width !== nm.width || x.height !== nm.height) return false;
+      if (nm.blob && x.blob) return x.blob.size === nm.blob.size;
+      /* embedded copy of the bundled built-in map: same image */
+      return !!(x.url && x.url.startsWith("data:"));
+    });
+    if (dup) continue;
+    maps.push({ ...nm, title: `Map ${maps.length + 1}` + (nm.player ? " · player" : "") });
+  }
+  const expected = [...new Set([...m.expected, ...fresh.expected])].sort((a, b) => +a - +b);
+  return {
+    ...m,
+    sourceUrl: m.sourceUrl || fresh.sourceUrl,
+    names: { ...m.names, ...fresh.names },
+    hrefs: { ...m.hrefs, ...fresh.hrefs },
+    expected,
+    areas: { ...(m.areas || {}), ...(fresh.areas || {}) },
+    maps,
+  };
+}
+
 export const pinStoreKey = (moduleId: string, mapIndex: number) =>
   "edpins:" + moduleId + (mapIndex ? ":" + mapIndex : "");
 

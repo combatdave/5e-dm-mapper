@@ -22,6 +22,14 @@ downloading it onto a tablet works just as well.
    can be renamed from the library (✎), persist in IndexedDB (map
    images included), and the app reopens the last-used one directly.
 
+   A save often holds several maps (the Citadel's fortress and grove
+   levels share one page): inside a page, edit mode has **⇪ import
+   save** — upload the same file again to add its other maps as tabs
+   and merge in the area text, links and names. Existing pins are
+   untouched, duplicate maps are skipped, and importing with no maps
+   selected attaches the text alone (that's how the built-in page
+   gets its reader).
+
 2. **Annotate.** In **edit pins** mode, tap the map and a focused
    input opens: type the room number and press enter — the pin lands
    on the tap point. Type `t` or `s` for a trap / secret-door marker:
@@ -73,7 +81,8 @@ npm run build    # type-check + emit ./index.html
 Layout:
 
 - `app/src/App.tsx` — routing: library ↔ module
-- `app/src/Home.tsx` — library, upload, map-image picker
+- `app/src/Home.tsx` — library screen
+- `app/src/SaveImport.tsx` — shared upload button + map-image picker
 - `app/src/ModuleView.tsx` — one module: header, chips, map tabs
 - `app/src/MapView.tsx` — pan/zoom viewport, pins, the whole edit mode
 - `app/src/AreaCard.tsx` — hover/long-press at-a-glance card

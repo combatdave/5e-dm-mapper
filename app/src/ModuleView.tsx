@@ -4,7 +4,8 @@
  */
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { ModuleDef } from "./modules";
-import { pinStoreKey } from "./modules";
+import { mergeSaveIntoModule, pinStoreKey } from "./modules";
+import { SaveImporter } from "./SaveImport";
 import { openArea } from "./helpers";
 import { PinStore } from "./pins";
 import { MapView } from "./MapView";
@@ -12,7 +13,11 @@ import type { MapHandle } from "./MapView";
 import { ExportPanel } from "./EditChrome";
 import { AreaPanel } from "./AreaPanel";
 
-export function ModuleView({ module, onBack }: { module: ModuleDef; onBack: () => void }) {
+export function ModuleView({ module, onBack, onUpdate }: {
+  module: ModuleDef;
+  onBack: () => void;
+  onUpdate: (m: ModuleDef) => void;
+}) {
   const [editing, setEditing] = useState(false);
   const [exportJson, setExportJson] = useState<string | null>(null);
   const [activeMap, setActiveMap] = useState(0);
@@ -111,6 +116,13 @@ export function ModuleView({ module, onBack }: { module: ModuleDef; onBack: () =
               : module.title}
           </h1>
           <div className="actions">
+            {editing && (
+              <SaveImporter
+                mode="merge"
+                buttonLabel="⇪ import save"
+                onPicked={(page, picked) => onUpdate(mergeSaveIntoModule(module, page, picked))}
+              />
+            )}
             <button id="exportBtn" className="btn" onClick={exportPins}>⤓ export pins</button>
             <button id="clearBtn" className="btn danger" onClick={clearPins}>✖ clear my pins</button>
             <button id="editBtn" className="btn" onClick={() => setEditing(on => !on)}>

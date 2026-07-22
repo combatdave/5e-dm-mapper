@@ -15,7 +15,11 @@ export default function App() {
   useEffect(() => {
     void (async () => {
       const saved = await listSavedModules();
-      const all = [BUILTIN, ...saved.filter(m => m.id !== BUILTIN.id)];
+      /* a save imported into the built-in page persists under its id —
+         prefer that enriched copy over the bundled definition */
+      const savedBuiltin = saved.find(m => m.id === BUILTIN.id);
+      const first = savedBuiltin ? { ...BUILTIN, ...savedBuiltin, builtin: true } : BUILTIN;
+      const all = [first, ...saved.filter(m => m.id !== BUILTIN.id)];
       const titles = titleOverrides();
       for (const m of all) if (titles[m.id]) m.title = titles[m.id];
       setModules(all);
@@ -52,6 +56,11 @@ export default function App() {
     setModules(ms => ms.filter(x => x.id !== id));
   };
 
+  const update = (m: ModuleDef) => {
+    void saveModule(m);
+    setModules(ms => ms.map(x => (x.id === m.id ? m : x)));
+  };
+
   const rename = (id: string, title: string) => {
     setTitleOverride(id, title);
     setModules(ms => ms.map(m => {
@@ -66,7 +75,7 @@ export default function App() {
 
   const current = openId ? modules.find(m => m.id === openId) : undefined;
   if (current) {
-    return <ModuleView key={current.id} module={current} onBack={() => setOpenId(null)} />;
+    return <ModuleView key={current.id} module={current} onBack={() => setOpenId(null)} onUpdate={update} />;
   }
   return <Home modules={modules} onOpen={open} onCreate={create} onDelete={remove} onRename={rename} />;
 }
