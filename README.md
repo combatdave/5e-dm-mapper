@@ -23,9 +23,11 @@ room — that room's text opens in your D&D Beyond copy of the module.
    mode. Tap an empty spot on the map and it reads the printed room number
    under your finger (normalized cross-correlation against digit glyphs
    sampled from the map itself — no network, no OCR service) and drops a
-   pin there. Confirm the guess, pick an alternative, choose from the full
-   number rail, or drop a `T`/`S` marker. Fine-tune with the nudge d-pad
-   (touch) or by dragging (mouse). Your placements are saved per-device in
+   pin there. Confirm the guess, pick an alternative, or choose from the
+   full number rail. `T`/`S` markers pick their room number from a
+   dedicated rail (`T1`…`T41`), so a trap marker always knows which area
+   text it belongs to. Fine-tune with the nudge d-pad (touch) or by
+   dragging (mouse). Your placements are saved per-device in
    `localStorage` and survive reloads.
 
 3. **One self-contained file.** Map image, pin data, recognition
@@ -39,19 +41,22 @@ room — that room's text opens in your D&D Beyond copy of the module.
 Pins you place live only in your browser. To make them part of the file
 for everyone:
 
-1. In edit mode, hit **⤓ export pins** — a `user_pins.json` downloads
-   (and is copied to the clipboard). It maps each label to image-pixel
+1. In edit mode, hit **⤓ export pins** — a panel shows the JSON with
+   copy / share / download buttons (each with fallbacks, since tablet
+   browsers are picky about all three). It maps each label to image-pixel
    coordinates, e.g. `{"12": [[86, 801]], "T24": [[201, 649]]}`.
 2. Add matching `<a class="pin" …>` elements inside the map's
    `<div class="world">`, converting coordinates to percentages of the
    image size (450 × 932 for the Fortress Level).
 
-Baked-in state right now: 28 of 41 Fortress Level rooms pinned, plus
-11 trap/secret markers. The header count keeps score.
+Baked-in state right now: no pins yet — the old auto-detected set was
+scrapped and placement is being redone by hand in edit mode. The header
+count keeps score; chips with a dimmed number are rooms that still lack
+a pin (tapping them opens the area text directly).
 
 ## Ideas / not done yet
 
-- Pin the remaining Fortress Level rooms (1–9, 12, 21, 29, 33).
+- Place and bake in the Fortress Level pin set.
 - Grove Level map (area links for rooms 42–56 are already in the data).
 - A small script to bake `user_pins.json` back into the HTML
   automatically.
