@@ -4,26 +4,18 @@
  * might face soon without opening anything.
  */
 import type { AreaDigest } from "./mhtml";
+import { creatureEmoji } from "./helpers";
 
-export interface NearbyRoom {
-  label: string;
-  name?: string;
-  mark: boolean;
-  creatureCount: number;
-}
-
-export function AreaCard({ num, name, digest, href, nearby, left, top, above, onOpenText, onOpenCreature, onLocate, onClose }: {
+export function AreaCard({ num, name, digest, href, left, top, above, onOpenText, onOpenCreature, onClose }: {
   num: string;
   name?: string;
   digest?: AreaDigest;
   href?: string;
-  nearby: NearbyRoom[];
   left: number;
   top: number;
   above: boolean;
   onOpenText: () => void;
   onOpenCreature: (href: string) => void;
-  onLocate: (label: string) => void;
   onClose: () => void;
 }) {
   return (
@@ -44,7 +36,7 @@ export function AreaCard({ num, name, digest, href, nearby, left, top, above, on
           {digest.creatures.map(c => (
             <button key={c.href + c.name} className="ac-chip ac-creature"
               onClick={() => onOpenCreature(c.href)}>
-              {c.count ? `${c.count}× ` : ""}{c.name}
+              {creatureEmoji(c.name)} {c.count ? `${c.count}× ` : ""}{c.name}
             </button>
           ))}
         </div>
@@ -56,17 +48,6 @@ export function AreaCard({ num, name, digest, href, nearby, left, top, above, on
       ) : null}
       {digest?.treasure && <p className="ac-treasure">{digest.treasure}</p>}
       {!digest && <p className="ac-none">no saved text for this area{href ? " — tap the pin to open it" : ""}</p>}
-      {nearby.length ? (
-        <div className="ac-nearby">
-          <span>nearby</span>
-          {nearby.map(n => (
-            <button key={n.label} className={"ac-chip" + (n.mark ? " ac-mark" : "")}
-              onClick={() => onLocate(n.label)}>
-              {n.label}{n.creatureCount ? ` ☠${n.creatureCount}` : ""}
-            </button>
-          ))}
-        </div>
-      ) : null}
     </div>
   );
 }

@@ -31,21 +31,22 @@ downloading it onto a tablet works just as well.
    repaired on load). Fine-tune with the nudge d-pad (tap a pin) or
    by dragging (mouse); tapping a pin also offers delete.
 
-3. **Play.** Pan and pinch freely; pins keep constant screen size. Tap
-   a room pin to open that area's text — the numbered headings of the
-   saved page ("12. Larder") become deep links to its anchors, and all
-   of them share one named browser tab. Chips along the top are the
-   index: tapping one flies the map to the pin and pulses it (or opens
-   the text directly if the room has no pin yet).
+3. **Play.** The app is an interactive adventure book with the map as
+   its index. Pan and pinch freely; pins keep constant screen size,
+   and rooms with creatures carry a small icon (🐀 💀 🌿 …).
 
    **Hover a pin** (long-press on touch) for the at-a-glance card:
-   the area's read-aloud opener, its creatures with counts (tap one
-   for the stat block), DCs, the treasure line, and a "nearby" strip
-   of adjacent rooms with their threat counts — scout what the party
-   might face soon without opening anything. The digests are
-   extracted from the saved page's text at upload time, so they work
-   offline; the built-in page has no stored text (upload your own
-   save of the same page to get cards for it).
+   read-aloud opener, creatures with counts, DCs, treasure — scouting
+   what the party might face soon.
+
+   **Click a pin** (or a pinless chip) and the area's own section
+   from the saved page opens in a book-styled reader panel — no more
+   scrolling the whole D&D Beyond page hunting for a room. Every link
+   inside (monsters, spells, cross-references) opens on D&D Beyond in
+   one shared tab; the panel's header button jumps to the area there
+   too. All of it works offline: the section HTML is sanitized and
+   stored with the module at upload time. (The built-in page has no
+   stored text — upload your own save to get the reader.)
 
 4. **Save & export.** Pins live per-device in `localStorage`
    (`edpins:<module id>`, unchanged from earlier builds). **⤓ export
@@ -76,6 +77,7 @@ Layout:
 - `app/src/ModuleView.tsx` — one module: header, chips, map tabs
 - `app/src/MapView.tsx` — pan/zoom viewport, pins, the whole edit mode
 - `app/src/AreaCard.tsx` — hover/long-press at-a-glance card
+- `app/src/AreaPanel.tsx` — book-styled reader for one area's section
 - `app/src/EditChrome.tsx` — action bar, typed-input placement, nudge pad, export panel
 - `app/src/mhtml.ts` — MHTML / HTML save parsing
 - `app/src/modules.ts` — module model + IndexedDB persistence
@@ -85,9 +87,5 @@ Layout:
 
 ## Ideas / not done yet
 
-- Quick wins: search across room names/text with fly-to; type a
-  number outside edit mode to jump to that room.
-- Session layer: draggable party marker, visited/cleared/alerted room
-  states, per-room notes surfaced in the hover card, new-session reset.
-- Player second screen: a synced window showing the player map,
-  driven by the DM's pan/zoom (BroadcastChannel); fog-of-war later.
+- Search across room names/text with fly-to; type a number outside
+  edit mode to jump to that room.

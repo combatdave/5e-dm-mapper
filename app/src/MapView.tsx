@@ -14,13 +14,12 @@ import {
   useSyncExternalStore,
 } from "react";
 import type { MapDef, ModuleDef } from "./modules";
-import { clamp, MAX_ZOOM, MIN_ZOOM, openArea, pinTitle } from "./helpers";
+import { clamp, creatureEmoji, MAX_ZOOM, MIN_ZOOM, openArea, pinTitle } from "./helpers";
 import { PinStore } from "./pins";
 import type { Pin } from "./pins";
 import { EditBar, NudgePad, PlaceInput } from "./EditChrome";
 import type { BarItem } from "./EditChrome";
 import { AreaCard } from "./AreaCard";
-import type { NearbyRoom } from "./AreaCard";
 
 export interface MapHandle {
   locate(label: string): boolean;
@@ -44,11 +43,16 @@ interface Props {
   imgSrc: string;
   store: PinStore;
   editing: boolean;
+  /* open the in-app reader for an area; returns false when the area
+     has no stored text (caller falls back to the D&D Beyond link) */
+  onOpenArea?: (num: string) => boolean;
 }
 
 export const MapView = forwardRef<MapHandle, Props>(function MapView(
-  { module, map, imgSrc, store, editing }, ref,
+  { module, map, imgSrc, store, editing, onOpenArea }, ref,
 ) {
+  const onOpenAreaRef = useRef(onOpenArea);
+  onOpenAreaRef.current = onOpenArea;
   const vpRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -258,8 +262,12 @@ export const MapView = forwardRef<MapHandle, Props>(function MapView(
       clearLp();
       if (lpFired) { lpFired = false; tap = null; return; }   // long-press showed the card
       if (e.type === "pointerup" && tap && moved <= 6 && !editingRef.current) {
-        const h = tap.getAttribute("href");
-        if (h) openArea(h);
+        const pin = store.byId(Number((tap as HTMLElement).dataset.id));
+        const num = pin ? pin.label.replace(/^[TS]/, "") : "";
+        if (!(num && onOpenAreaRef.current?.(num))) {
+          const h = tap.getAttribute("href");
+          if (h) openArea(h);
+        }
       }
       tap = null;
     };
@@ -403,28 +411,12 @@ export const MapView = forwardRef<MapHandle, Props>(function MapView(
     if (!pin) return null;
     const num = pin.label.replace(/^[TS]/, "");
     const digest = module.areas?.[num];
-    const R = map.width * 0.16;
-    const nearby: NearbyRoom[] = store.pins
-      .filter(p => p.id !== pin.id && p.label !== pin.label)
-      .map(p => ({ p, d: Math.abs(p.x - pin.x) + Math.abs(p.y - pin.y) }))
-      .filter(({ d }) => d <= R)
-      .sort((a, b) => a.d - b.d)
-      .slice(0, 4)
-      .map(({ p }) => {
-        const n = p.label.replace(/^[TS]/, "");
-        return {
-          label: p.label,
-          name: module.names[n],
-          mark: p.mark,
-          creatureCount: module.areas?.[n]?.creatures.reduce((s, c) => s + (c.count || 1), 0) ?? 0,
-        };
-      });
     const vpEl = vpRef.current;
     const vw = vpEl?.clientWidth || 600, vh = vpEl?.clientHeight || 400;
     const left = clamp(card.px - 140, 8, Math.max(8, vw - 288));
     const above = card.py > vh * 0.45;
     const top = above ? clamp(card.py - 16, 100, vh - 10) : clamp(card.py + 18, 8, vh - 80);
-    return { pin, num, digest, nearby, left, top, above };
+    return { pin, num, digest, left, top, above };
   })();
 
   return (
@@ -433,10 +425,14 @@ export const MapView = forwardRef<MapHandle, Props>(function MapView(
         <div className="world" ref={worldRef}>
           <img ref={imgRef} src={imgSrc} width={map.width} height={map.height}
             alt={map.title + " map"} />
-          {store.pins.map(p => (
+          {store.pins.map(p => {
+            const num = p.label.replace(/^[TS]/, "");
+            const creatures = !p.mark ? module.areas?.[num]?.creatures : undefined;
+            return (
             <a
               key={p.id}
               data-id={p.id}
+              data-label={p.label}
               className={"pin" + (p.mark ? " mk" : "") + (p.user ? " user" : "")}
               href={editing ? undefined : hrefFor(p) || undefined}
               target="_blank"
@@ -447,8 +443,12 @@ export const MapView = forwardRef<MapHandle, Props>(function MapView(
               onDragStart={e => e.preventDefault()}
             >
               {p.label}
+              {creatures?.length ? (
+                <span className="pinbadge" aria-hidden="true">{creatureEmoji(creatures[0].name)}</span>
+              ) : null}
             </a>
-          ))}
+            );
+          })}
         </div>
       </div>
       <div className="zoomctl">
@@ -475,13 +475,11 @@ export const MapView = forwardRef<MapHandle, Props>(function MapView(
           name={module.names[cardData.num]}
           digest={cardData.digest}
           href={hrefFor(cardData.pin) || undefined}
-          nearby={cardData.nearby}
           left={cardData.left}
           top={cardData.top}
           above={cardData.above}
           onOpenText={() => { const h = hrefFor(cardData.pin); if (h) openArea(h); }}
           onOpenCreature={h => openArea(h)}
-          onLocate={l => { setCard(null); methods.current.locate(l); }}
           onClose={() => setCard(null)}
         />
       )}

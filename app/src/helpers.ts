@@ -39,3 +39,19 @@ export function pinTitle(names: Record<string, string>, lbl: string): string {
   if (!mark) return base;
   return (mark === "T" ? "Trap" : "Secret door") + (num ? " — " + base : "");
 }
+
+/* a friendly icon per creature type — badge on pins, chips in the reader */
+const CREATURE_EMOJI: [RegExp, string][] = [
+  [/rat/i, "🐀"], [/kobold|lizard/i, "🦎"], [/goblin|hobgoblin|bugbear/i, "👺"],
+  [/skeleton/i, "💀"], [/zombie|ghoul|ghast|wight/i, "🧟"], [/snake|serpent/i, "🐍"],
+  [/spider/i, "🕷️"], [/wolf/i, "🐺"], [/dragon|drake|wyrm/i, "🐉"],
+  [/blight|twig|vine|shrub|plant|treant/i, "🌿"], [/bat/i, "🦇"], [/bear/i, "🐻"],
+  [/boar/i, "🐗"], [/frog|toad/i, "🐸"], [/bandit|thug|assassin/i, "🗡️"],
+  [/cultist|acolyte|priest|mage|druid/i, "🧙"], [/mephit|elemental|fire/i, "🔥"],
+  [/giant|ogre|troll/i, "🗿"], [/ooze|jelly|pudding|cube/i, "🟢"],
+  [/hyena|jackal|dog|mastiff/i, "🐕"], [/stirge|hawk|eagle|owl|raven/i, "🦅"],
+];
+export function creatureEmoji(name?: string): string {
+  if (name) for (const [re, e] of CREATURE_EMOJI) if (re.test(name)) return e;
+  return "☠️";
+}

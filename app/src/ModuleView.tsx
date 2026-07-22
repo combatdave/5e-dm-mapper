@@ -10,11 +10,13 @@ import { PinStore } from "./pins";
 import { MapView } from "./MapView";
 import type { MapHandle } from "./MapView";
 import { ExportPanel } from "./EditChrome";
+import { AreaPanel } from "./AreaPanel";
 
 export function ModuleView({ module, onBack }: { module: ModuleDef; onBack: () => void }) {
   const [editing, setEditing] = useState(false);
   const [exportJson, setExportJson] = useState<string | null>(null);
   const [activeMap, setActiveMap] = useState(0);
+  const [panelNum, setPanelNum] = useState<string | null>(null);
   const mapRefs = useRef<(MapHandle | null)[]>([]);
 
   const stores = useMemo(
@@ -43,8 +45,22 @@ export function ModuleView({ module, onBack }: { module: ModuleDef; onBack: () =
   useEffect(() => {
     document.body.classList.toggle("editing", editing);
     if (!editing) setExportJson(null);
+    if (editing) setPanelNum(null);
     return () => document.body.classList.remove("editing");
   }, [editing]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setPanelNum(null); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
+  /* pin tap: open the area's own text in-app when we have it */
+  const openAreaPanel = (num: string): boolean => {
+    if (!module.areas?.[num]?.html) return false;
+    setPanelNum(num);
+    return true;
+  };
 
   /* hidden maps have zero size; refit when a tab becomes active */
   useEffect(() => { mapRefs.current[activeMap]?.refit(); }, [activeMap]);
@@ -65,6 +81,7 @@ export function ModuleView({ module, onBack }: { module: ModuleDef; onBack: () =
     if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button !== 0) return;
     e.preventDefault();
     if (mapRefs.current[activeMap]?.locate(num)) return;
+    if (openAreaPanel(num)) return;
     const href = module.hrefs[num] || module.sourceUrl;
     if (href) openArea(href);
   };
@@ -141,6 +158,15 @@ export function ModuleView({ module, onBack }: { module: ModuleDef; onBack: () =
               ))}
             </div>
           )}
+          {panelNum && module.areas?.[panelNum] && (
+            <AreaPanel
+              num={panelNum}
+              name={module.names[panelNum]}
+              digest={module.areas[panelNum]}
+              href={module.hrefs[panelNum] || module.sourceUrl || undefined}
+              onClose={() => setPanelNum(null)}
+            />
+          )}
           {module.maps.map((m, i) => (
             <div key={i} className="mapslot" style={i === activeMap ? undefined : { display: "none" }}>
               <MapView
@@ -150,6 +176,7 @@ export function ModuleView({ module, onBack }: { module: ModuleDef; onBack: () =
                 imgSrc={imgSrcs[i]}
                 store={stores[i]}
                 editing={editing}
+                onOpenArea={openAreaPanel}
               />
             </div>
           ))}

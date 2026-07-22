@@ -27,6 +27,7 @@ export interface AreaDigest {
   dcs: string[];                         // "DC 15 Wisdom (Perception)"
   treasure?: string;
   text?: string;                         // plain text (cards + search)
+  html?: string;                         // sanitized section markup (reader panel)
 }
 
 export interface ParsedPage {
@@ -227,10 +228,56 @@ function extractAreas(doc: Document, baseUrl: string): Record<string, AreaDigest
       if (digest.dcs.length < 6 && !digest.dcs.includes(dc)) digest.dcs.push(dc);
     }
     digest.text = flat.slice(0, 2000) || undefined;
-    if (digest.readAloud || digest.creatures.length || digest.dcs.length || digest.treasure || digest.text)
+    digest.html = sanitizeArea(blocks, baseUrl) || undefined;
+    if (digest.html || digest.readAloud || digest.creatures.length || digest.dcs.length || digest.treasure || digest.text)
       areas[num] = digest;
   }
   return areas;
+}
+
+/* ---------- section sanitizer ------------------------------------------
+   Keeps the area's real markup for the in-app reader, stripped to a
+   safe whitelist: structural + inline tags, hrefs absolutized so every
+   link opens on D&D Beyond, classes kept for book-style CSS hooks,
+   everything else (scripts, images, handlers, ids) dropped. */
+
+const KEEP_TAGS = new Set([
+  "P", "BLOCKQUOTE", "ASIDE", "DIV", "SECTION",
+  "UL", "OL", "LI", "TABLE", "THEAD", "TBODY", "TFOOT", "TR", "TD", "TH", "CAPTION",
+  "H3", "H4", "H5", "H6", "B", "I", "EM", "STRONG", "U", "S", "SPAN", "A",
+  "BR", "HR", "SUP", "SUB", "FIGCAPTION", "DL", "DT", "DD",
+]);
+
+function cleanAttrs(n: Element, baseUrl: string) {
+  for (const a of [...n.attributes]) {
+    if (a.name === "href" && n.tagName === "A") {
+      let h = a.value;
+      try { h = baseUrl ? new URL(h, baseUrl).href : h; } catch { /* raw */ }
+      if (/^https?:/.test(h)) n.setAttribute("href", h);
+      else n.removeAttribute("href");
+    } else if (a.name === "class" ||
+      ((n.tagName === "TD" || n.tagName === "TH") && (a.name === "colspan" || a.name === "rowspan"))) {
+      /* keep */
+    } else {
+      n.removeAttribute(a.name);
+    }
+  }
+}
+
+function sanitizeArea(blocks: Element[], baseUrl: string): string {
+  let out = "";
+  for (const b of blocks) {
+    if (out.length > 100_000) break;
+    if (!KEEP_TAGS.has(b.tagName)) continue;
+    const c = b.cloneNode(true) as Element;
+    for (const n of [...c.querySelectorAll("*")]) {
+      if (!KEEP_TAGS.has(n.tagName)) n.replaceWith(document.createTextNode(n.textContent || ""));
+      else cleanAttrs(n, baseUrl);
+    }
+    cleanAttrs(c, baseUrl);
+    if ((c.textContent || "").trim()) out += c.outerHTML;
+  }
+  return out;
 }
 
 /* ---------- decoding helpers ------------------------------------------ */
