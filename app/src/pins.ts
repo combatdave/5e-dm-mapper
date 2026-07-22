@@ -166,6 +166,6 @@ export class PinStore {
     this.emit();
   }
 
-  exportJson(): string { return JSON.stringify(this.userPins, null, 1); }
+  rawUserPins(): Record<string, Pt[]> { return this.userPins; }
   clearStored() { storage.removeItem(this.key); }
 }

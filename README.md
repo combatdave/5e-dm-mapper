@@ -1,46 +1,60 @@
 # 5e DM mapper
 
-Tablet-first map launcher for running published D&D 5e adventures at
-the table. Open the map, see the dungeon, tap a room — that room's text
-opens in your D&D Beyond copy of the module.
+Tablet-first tool for running published D&D 5e adventures at the table.
+Save an adventure page from D&D Beyond, upload it, pick the map image,
+pin the rooms — then during play, tap a pin to open that room's text in
+your D&D Beyond copy.
 
-**Maps:**
+**Live app:** `index.html` at the repo root (built output, committed so
+GitHub Pages can serve it — repo **Settings → Pages → Deploy from a
+branch → `main` / `/ (root)`**). It's one fully self-contained file, so
+downloading it onto a tablet works just as well.
 
-- [`index.html`](index.html) — The Sunless Citadel, Fortress Level
-  (built output, committed so GitHub Pages can serve it)
+## How it works
 
-GitHub Pages serves the repo root of `main` (repo **Settings → Pages →
-Deploy from a branch → `main` / `/ (root)`**), so pushing a rebuilt
-`index.html` updates the live page. The build is one fully
-self-contained file — map image, pins and code inlined — so downloading
-it onto a tablet works just as well.
+1. **Upload.** On D&D Beyond, save the adventure page with
+   Ctrl/Cmd-S → *"Webpage, Single File"* (`.mhtml`; plain `.html` works
+   too when its images are embedded or remote). Upload it on the
+   library screen. The app parses the archive — no server involved —
+   and shows the images it found; tap the map(s), done. Modules persist
+   in IndexedDB (map image included), and the app reopens the last-used
+   module directly.
 
-## Objectives
+2. **Annotate.** In **edit pins** mode, tap a printed room number on
+   the map. Recognition guesses the number under your finger by
+   normalized cross-correlation: the built-in module matches glyphs
+   sampled from its own map; uploaded maps start from digit templates
+   rendered at runtime in several generic fonts and sizes — and every
+   placement you confirm samples the number's real pixels into a
+   per-module *learned* set, so guesses converge on the map's actual
+   font. Wrong guess? Alternatives are on the bar, the full number rail
+   is one tap away, and `T`/`S` marker rails tag traps and secret doors
+   to a room. Fine-tune with the nudge d-pad (touch) or by dragging
+   (mouse). If the map image can't be read at all (remote image without
+   CORS), tapping simply opens the rail to pick the label by hand.
 
-1. **At the table (the main loop).** The DM has the map open on a tablet
-   mid-session. The map is the hero: pan and pinch freely, tap a room pin
-   to open that area's text on D&D Beyond. All area links share one named
-   browser tab, so a session doesn't end in forty duplicates. The chip row
-   is the index — tapping a chip *finds* the room, flying the map to its
-   pin and pulsing it. `T` and `S` pins mark traps and secret doors and
-   link to the relevant area.
+3. **Play.** Pan and pinch freely; pins keep constant screen size. Tap
+   a room pin to open that area's text — the numbered headings of the
+   saved page ("12. Larder") become deep links to its anchors, and all
+   of them share one named browser tab. Chips along the top are the
+   index: tapping one flies the map to the pin and pulses it (or opens
+   the text directly if the room has no pin yet).
 
-2. **Prep (pin placement).** Room pins are placed in **edit pins** mode.
-   Tap an empty spot on the map and it reads the printed room number
-   under your finger (normalized cross-correlation against digit glyphs
-   sampled from the map itself — no network, no OCR service) and drops a
-   pin there. Confirm the guess, pick an alternative, or choose from the
-   full number rail. `T`/`S` markers pick their room number from a
-   dedicated rail (`T1`…`T41`). Fine-tune with the nudge d-pad (touch) or
-   by dragging (mouse). Placements are saved per-device in
-   `localStorage` (same key as earlier builds) and survive reloads.
+4. **Save & export.** Pins live per-device in `localStorage`
+   (`edpins:<module id>`, unchanged from earlier builds). **⤓ export
+   pins** shows the JSON with copy / share / download; **✖ clear my
+   pins** resets the device.
+
+The Sunless Citadel (Fortress Level) ships built in, with all 41 rooms
+and 11 trap/secret-door markers pinned. To update its baked pins,
+replace [`user_pins.json`](user_pins.json) with a fresh export and
+rebuild.
 
 ## Development
 
-React + TypeScript + Vite. Source lives in [`app/`](app/); the build
-emits a single self-contained `index.html` at the repo root
-(`vite-plugin-singlefile` inlines the code and CSS, and the map image is
-inlined as a data URI).
+React + TypeScript + Vite; source in [`app/`](app/). `npm run build`
+type-checks and emits the single-file `index.html` at the repo root
+(`vite-plugin-singlefile`; the built-in map image is inlined).
 
 ```
 npm install
@@ -50,29 +64,20 @@ npm run build    # type-check + emit ./index.html
 
 Layout:
 
-- `app/src/App.tsx` — shell: header, chips, edit/export/clear actions
+- `app/src/App.tsx` — routing: library ↔ module
+- `app/src/Home.tsx` — library, upload, map-image picker
+- `app/src/ModuleView.tsx` — one module: header, chips, map tabs
 - `app/src/MapView.tsx` — pan/zoom viewport, pins, the whole edit mode
-- `app/src/EditChrome.tsx` — action bar, number/mark rails, nudge pad, export panel
+- `app/src/EditChrome.tsx` — action bar, rails, nudge pad, export panel
+- `app/src/mhtml.ts` — MHTML / HTML save parsing
+- `app/src/modules.ts` — module model + IndexedDB persistence
+- `app/src/recognize.ts` — digit recognition (template matching)
+- `app/src/fontbank.ts` — runtime generic-font templates + learning
 - `app/src/pins.ts` — pin model + localStorage persistence
-- `app/src/recognize.ts` — room-number recognition (template matching)
-- `app/src/mapdata.ts` + `app/src/glyphs.json` — links, names, digit templates
-- `user_pins.json` — the baked pin set (see below)
-
-## Updating the baked pins
-
-Pins placed in edit mode live only in that device's browser. To bake
-them in for everyone:
-
-1. In edit mode, hit **⤓ export pins** — a panel shows the JSON with
-   copy / share / download buttons. It maps each label to image-pixel
-   coordinates, e.g. `{"12": [[86, 801]], "T24": [[203, 650]]}`.
-2. Replace [`user_pins.json`](user_pins.json) with the export, then
-   `npm run build` and commit — the JSON is imported at build time.
-
-Baked-in state right now: **complete** — all 41 Fortress Level rooms
-(a few numbers appear at more than one spot on the map and get a pin at
-each) plus 11 trap/secret-door markers, hand-placed.
+- `app/src/mapdata.ts`, `app/src/glyphs.json`, `user_pins.json` — the
+  built-in Sunless Citadel module
 
 ## Ideas / not done yet
 
-- Grove Level map (area links for rooms 42–56 are already in the data).
+- Grove Level for the built-in module (its area links are already in
+  the data — or just re-save the page and upload it).

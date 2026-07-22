@@ -68,8 +68,76 @@ body.editing #editBtn{border-color:var(--green);color:var(--green)}
 .chips a.nopin b{color:var(--dim)}  /* room has no pin yet: tap opens text directly */
 
 /* ============================================================
+   home / library + upload picker
+   ============================================================ */
+main.home{gap:14px}
+.modlist{display:flex;flex-direction:column;gap:8px}
+.modcard{display:flex;gap:6px;align-items:stretch}
+.modopen{
+  flex:1;display:flex;flex-direction:column;gap:3px;align-items:flex-start;text-align:left;
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  padding:12px 14px;color:var(--text);cursor:pointer;font:inherit;
+}
+.modopen:hover{border-color:var(--accent)}
+.modtitle{color:var(--bright);font-size:15px;font-weight:700}
+.modmeta{color:var(--dim);font-size:11.5px}
+.moddel{
+  width:44px;background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  color:var(--red);font:600 14px system-ui;cursor:pointer;
+}
+.upload{display:flex;flex-direction:column;gap:8px}
+.btn.big{padding:14px;font-size:14px;width:100%}
+.btn.pri{border-color:var(--green);color:var(--green)}
+.uperror{color:var(--red);font-size:12.5px;margin:0}
+
+.picker{position:fixed;inset:0;z-index:70;background:#0d1116cc;display:flex;
+  align-items:center;justify-content:center;padding:16px}
+.pickerbox{
+  width:min(94vw,760px);max-height:88vh;display:flex;flex-direction:column;gap:10px;
+  background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;
+}
+.pickerhead{display:flex;flex-direction:column;gap:2px}
+.pickerhead b{color:var(--bright)}
+.pickerhead span{color:var(--dim);font-size:12px}
+.pickergrid{
+  flex:1;min-height:0;overflow-y:auto;display:grid;gap:8px;
+  grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+}
+.pickimg{
+  position:relative;background:var(--well);border:2px solid var(--line);border-radius:10px;
+  padding:0;overflow:hidden;cursor:pointer;min-height:110px;
+}
+.pickimg img{display:block;width:100%;height:150px;object-fit:contain;background:#0a0d11}
+.pickimg span{
+  position:absolute;left:6px;bottom:6px;background:#14181dd0;color:var(--dim);
+  font:600 10.5px system-ui;padding:2px 6px;border-radius:6px;
+}
+.pickimg.on{border-color:var(--green)}
+.pickimg.on::after{
+  content:"✓";position:absolute;right:6px;top:6px;width:22px;height:22px;border-radius:50%;
+  background:var(--green);color:var(--bg);font:700 13px/22px system-ui;text-align:center;
+}
+.pickerrow{display:flex;gap:8px;justify-content:flex-end}
+
+/* ============================================================
+   module header extras
+   ============================================================ */
+.backbtn{
+  background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--text);
+  font:700 15px system-ui;padding:2px 10px;margin-right:9px;cursor:pointer;vertical-align:2px;
+}
+.backbtn:hover{border-color:var(--dim)}
+.maptab{
+  background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--dim);
+  font:inherit;font-size:12px;text-transform:uppercase;letter-spacing:1.5px;
+  padding:3px 10px;margin-right:6px;cursor:pointer;
+}
+.maptab.on{color:var(--bright);border-color:var(--accent)}
+
+/* ============================================================
    map viewport — pan / pinch / zoom
    ============================================================ */
+.mapslot{flex:1;min-height:0;display:flex;flex-direction:column}
 .map{position:relative;flex:1;min-height:300px}
 .viewport{
   position:absolute;inset:0;overflow:hidden;border:1px solid var(--line);

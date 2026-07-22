@@ -1,5 +1,3 @@
-import { NAMES } from "./mapdata";
-
 export const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 export const MIN_ZOOM = 0.2;
@@ -33,10 +31,10 @@ export function openArea(href: string): void {
 }
 
 /* room label → hover title, e.g. "10. Honor Guard" / "Trap — 24. …" */
-export function pinTitle(lbl: string): string {
+export function pinTitle(names: Record<string, string>, lbl: string): string {
   const mark = /^[TS]/.test(lbl) ? lbl[0] : "";
   const num = mark ? lbl.slice(1) : lbl;
-  const name = NAMES[num] || "";
+  const name = names[num] || "";
   const base = name ? num + ". " + name : num;
   if (!mark) return base;
   return (mark === "T" ? "Trap" : "Secret door") + (num ? " — " + base : "");

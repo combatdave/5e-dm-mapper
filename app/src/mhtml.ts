@@ -1,0 +1,190 @@
+/* Parse a page saved from the browser — either an MHTML archive
+ * (Chrome/Edge "Save as → Webpage, Single File", .mhtml/.mht) or a
+ * plain .html file — into the bits the mapper needs: the page title,
+ * its original URL, every image (as a Blob when embedded, or a plain
+ * URL when the save references it remotely), and the headings that
+ * look like numbered areas ("12. Larder") so pins can deep-link back
+ * to the right anchor.
+ */
+
+export interface PageImage {
+  location: string;        // original URL / content-location (dedupe key)
+  blob?: Blob;             // embedded image data
+  url?: string;            // remote src (plain-HTML saves)
+}
+
+export interface PageHeading {
+  id: string;
+  text: string;
+}
+
+export interface ParsedPage {
+  title: string;
+  sourceUrl: string;       // "" when unknown
+  images: PageImage[];
+  headings: PageHeading[];
+}
+
+export async function parseSavedPage(file: File): Promise<ParsedPage> {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const head = latin1(bytes.subarray(0, 8192));
+  if (/multipart\/related/i.test(head) && /boundary=/i.test(head)) {
+    return parseMhtml(latin1(bytes));
+  }
+  return parseHtmlText(new TextDecoder().decode(bytes), "", file.name);
+}
+
+/* ---------- MHTML (multipart MIME) ---------------------------------- */
+
+interface MimePart {
+  type: string;
+  location: string;
+  body: Uint8Array;
+}
+
+function parseMhtml(raw: string): ParsedPage {
+  const bm = raw.match(/boundary="?([^"\r\n]+)"?/i);
+  if (!bm) throw new Error("No MIME boundary found — is this an .mhtml save?");
+  const boundary = "--" + bm[1];
+  const snapshotUrl = (raw.slice(0, 4096).match(/^Snapshot-Content-Location:\s*(\S+)/im) || [])[1] || "";
+
+  const parts: MimePart[] = [];
+  const chunks = raw.split(boundary).slice(1);      // drop preamble
+  for (const chunk of chunks) {
+    if (chunk.startsWith("--")) break;              // closing boundary
+    const sep = chunk.indexOf("\r\n\r\n");
+    if (sep < 0) continue;
+    const header = chunk.slice(0, sep).replace(/\r\n[ \t]+/g, " ");  // unfold
+    const body = chunk.slice(sep + 4);
+    const h = (name: string) =>
+      (header.match(new RegExp("^" + name + ":\\s*(.+)$", "im")) || [])[1]?.trim() ?? "";
+    const type = h("Content-Type").split(";")[0].trim().toLowerCase();
+    const encoding = h("Content-Transfer-Encoding").toLowerCase();
+    const location = h("Content-Location");
+    let bodyBytes: Uint8Array;
+    if (encoding === "base64") bodyBytes = b64Bytes(body);
+    else if (encoding === "quoted-printable") bodyBytes = qpBytes(body);
+    else bodyBytes = latin1Bytes(body);
+    parts.push({ type, location, body: bodyBytes });
+  }
+
+  const htmlPart = parts.find(p => p.type === "text/html");
+  if (!htmlPart) throw new Error("No HTML document found in the archive.");
+  const html = new TextDecoder().decode(htmlPart.body);
+  const sourceUrl = snapshotUrl || htmlPart.location;
+
+  const byLocation = new Map<string, MimePart>();
+  for (const p of parts) if (p.location) byLocation.set(p.location, p);
+
+  const page = parseHtmlText(html, sourceUrl, "");
+  const images: PageImage[] = [];
+  const seen = new Set<string>();
+  const push = (im: PageImage) => {
+    if (seen.has(im.location)) return;
+    seen.add(im.location);
+    images.push(im);
+  };
+  /* referenced by <img> tags first (document order) … */
+  for (const im of page.images) {
+    const part = byLocation.get(im.location);
+    if (part && part.type.startsWith("image/"))
+      push({ location: im.location, blob: new Blob([part.body as BlobPart], { type: part.type }) });
+    else push(im);
+  }
+  /* … then any other image parts in the archive (srcset, lightboxes) */
+  for (const p of parts)
+    if (p.type.startsWith("image/") && p.location)
+      push({ location: p.location, blob: new Blob([p.body as BlobPart], { type: p.type }) });
+
+  return { ...page, sourceUrl, images };
+}
+
+/* ---------- plain HTML ----------------------------------------------- */
+
+function parseHtmlText(html: string, sourceUrl: string, fallbackTitle: string): ParsedPage {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  const canonical =
+    doc.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.getAttribute("href") ||
+    doc.querySelector("base")?.getAttribute("href") || "";
+  const url = sourceUrl || canonical || "";
+
+  const images: PageImage[] = [];
+  const seen = new Set<string>();
+  doc.querySelectorAll("img").forEach(img => {
+    const src = img.getAttribute("src") || "";
+    if (!src || src.startsWith("cid:")) return;
+    let loc = src;
+    try { loc = url ? new URL(src, url).href : src; } catch { /* keep raw */ }
+    if (seen.has(loc)) return;
+    seen.add(loc);
+    if (src.startsWith("data:")) {
+      const blob = dataUrlToBlob(src);
+      if (blob) images.push({ location: loc, blob });
+    } else if (/^https?:/.test(loc)) {
+      images.push({ location: loc, url: loc });
+    }
+  });
+
+  const headings: PageHeading[] = [];
+  doc.querySelectorAll("h1[id],h2[id],h3[id],h4[id],h5[id],h6[id]").forEach(h => {
+    const text = (h.textContent || "").trim().replace(/\s+/g, " ");
+    if (text) headings.push({ id: h.id, text });
+  });
+
+  return {
+    title: (doc.title || fallbackTitle || "Untitled module").trim(),
+    sourceUrl: url,
+    images,
+    headings,
+  };
+}
+
+/* ---------- decoding helpers ------------------------------------------ */
+
+function latin1(bytes: Uint8Array): string {
+  let out = "";
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK)
+    out += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  return out;
+}
+
+function latin1Bytes(s: string): Uint8Array {
+  const u = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i) & 0xff;
+  return u;
+}
+
+function b64Bytes(s: string): Uint8Array {
+  const bin = atob(s.replace(/[^A-Za-z0-9+/=]/g, ""));
+  const u = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  return u;
+}
+
+function qpBytes(s: string): Uint8Array {
+  s = s.replace(/=\r?\n/g, "");
+  const out = new Uint8Array(s.length);
+  let j = 0;
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === "=" && i + 2 < s.length && /^[0-9A-Fa-f]{2}$/.test(s.slice(i + 1, i + 3))) {
+      out[j++] = parseInt(s.slice(i + 1, i + 3), 16);
+      i += 2;
+    } else {
+      out[j++] = s.charCodeAt(i) & 0xff;
+    }
+  }
+  return out.subarray(0, j);
+}
+
+function dataUrlToBlob(dataUrl: string): Blob | null {
+  const m = dataUrl.match(/^data:([^;,]+)?(;base64)?,(.*)$/s);
+  if (!m) return null;
+  const type = m[1] || "application/octet-stream";
+  try {
+    if (m[2]) return new Blob([b64Bytes(m[3]) as BlobPart], { type });
+    return new Blob([decodeURIComponent(m[3])], { type });
+  } catch {
+    return null;
+  }
+}

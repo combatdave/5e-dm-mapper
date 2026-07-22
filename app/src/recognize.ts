@@ -7,16 +7,10 @@
  * starts, rx/ry search radius, comp/pen = stray-digit check for
  * single-digit guesses sitting inside a two-digit number.
  */
-import glyphs from "./glyphs.json";
+import type { GlyphData } from "./modules";
 
-const CELLS = glyphs.cells as Record<string, number[][]>;
-const P = glyphs.p as {
-  pitch: number; cw: number; chh: number;
-  rx: number; ry: number; comp: number; pen: number;
-};
-
-/** [score, label, x, y] */
-export type Guess = [number, string, number, number];
+/** [score, label, x, y, bankIndex] — bankIndex says which glyph bank won */
+export type Guess = [number, string, number, number, number];
 
 export function toGrayscale(im: HTMLImageElement): Float32Array {
   const c = document.createElement("canvas");
@@ -66,10 +60,13 @@ function matchAround(
   return [best, bx, by];
 }
 
-/* build 1-2 template variants for a (possibly multi-digit) label */
-function templatesFor(label: string): [Float32Array, number, number][] {
+/* build template variants for a (possibly multi-digit) label — every
+   digit uses the same variant index (same font per rendering) */
+function templatesFor(G: GlyphData, label: string): [Float32Array, number, number][] {
+  const CELLS = G.cells, P = G.p;
+  const maxCombos = G.combos ?? 2;
   const outs: [Float32Array, number, number][] = [];
-  for (let combo = 0; combo < 2; combo++) {
+  for (let combo = 0; combo < maxCombos; combo++) {
     let ok = true;
     const tw = P.pitch * (label.length - 1) + P.cw, th = P.chh;
     const t = new Float32Array(tw * th), w = new Float32Array(tw * th);
@@ -92,7 +89,8 @@ function templatesFor(label: string): [Float32Array, number, number][] {
 
 /* does another digit sit right next to bx,by?  (used to penalise a
    single-digit guess that is really half of a two-digit number) */
-function strayDigitScore(g: Float32Array, W: number, H: number, bx: number, by: number): number {
+function strayDigitScore(G: GlyphData, g: Float32Array, W: number, H: number, bx: number, by: number): number {
+  const CELLS = G.cells, P = G.p;
   let b = 0;
   for (const side of [-P.pitch, P.pitch]) for (const ch in CELLS) {
     const c = CELLS[ch][0];
@@ -104,21 +102,31 @@ function strayDigitScore(g: Float32Array, W: number, H: number, bx: number, by: 
   return b;
 }
 
-/* score every candidate label around x,y → best first */
+/* score every candidate label around x,y across all banks → best first.
+   Banks are alternate glyph sets: the built-in map has one sampled from
+   the map itself; uploads get canvas-rendered generic fonts at a few
+   sizes plus the module's learned samples. */
 export function rankGuesses(
+  banks: GlyphData[],
   g: Float32Array, W: number, H: number, x: number, y: number,
   cands: string[], placed: Set<string>,
 ): Guess[] {
   const scored: Guess[] = [];
   for (const label of cands) {
-    let best = 0, bx = x, by = y;
-    for (const [t, tw, th] of templatesFor(label)) {
-      const r = matchAround(g, W, H, t, tw, th, x, y, P.rx, P.ry);
-      if (r[0] > best) { best = r[0]; bx = r[1]; by = r[2]; }
+    let best = 0, bx = x, by = y, bBank = 0;
+    for (let bi = 0; bi < banks.length; bi++) {
+      const G = banks[bi], P = G.p;
+      let bankBest = 0, bankX = x, bankY = y;
+      for (const [t, tw, th] of templatesFor(G, label)) {
+        const r = matchAround(g, W, H, t, tw, th, x, y, P.rx, P.ry);
+        if (r[0] > bankBest) { bankBest = r[0]; bankX = r[1]; bankY = r[2]; }
+      }
+      if (label.length === 1 && bankBest > 0 && strayDigitScore(G, g, W, H, bankX, bankY) >= P.comp)
+        bankBest -= P.pen;
+      if (bankBest > best) { best = bankBest; bx = bankX; by = bankY; bBank = bi; }
     }
-    if (label.length === 1 && best > 0 && strayDigitScore(g, W, H, bx, by) >= P.comp) best -= P.pen;
     if (!placed.has(label)) best += 0.06;   // prefer rooms that still lack a pin
-    scored.push([best, label, bx, by]);
+    scored.push([best, label, bx, by, bBank]);
   }
   scored.sort((a, b) => b[0] - a[0]);
   return scored;
