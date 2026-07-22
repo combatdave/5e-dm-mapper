@@ -5,7 +5,7 @@
  * to stat blocks.
  */
 import type { AreaDigest } from "./mhtml";
-import { openArea } from "./helpers";
+import { openArea, TEXT_TAB } from "./helpers";
 
 export function AreaPanel({ num, name, digest, href, onClose }: {
   num: string;
@@ -17,10 +17,6 @@ export function AreaPanel({ num, name, digest, href, onClose }: {
   return (
     <div
       className="areapanel"
-      onClick={e => {
-        const a = (e.target as Element).closest?.("a[href]");
-        if (a) { e.preventDefault(); openArea(a.getAttribute("href")!); }
-      }}
       onPointerDown={e => e.stopPropagation()}
       onPointerUp={e => e.stopPropagation()}
     >
@@ -28,7 +24,9 @@ export function AreaPanel({ num, name, digest, href, onClose }: {
         <b>{num}{name ? `. ${name}` : ""}</b>
         <div className="ap-actions">
           {href && (
-            <button className="ac-open" onClick={() => openArea(href)}>D&D Beyond ↗</button>
+            /* a real link — target names the shared tab, and the
+               hosted preview's sandbox only lets real links out */
+            <a className="ac-open" href={href} target={TEXT_TAB}>D&D Beyond ↗</a>
           )}
           <button className="ap-close" aria-label="close" onClick={onClose}>✕</button>
         </div>
@@ -43,7 +41,14 @@ export function AreaPanel({ num, name, digest, href, onClose }: {
           ))}
         </div>
       )}
-      <div className="ap-body" dangerouslySetInnerHTML={{ __html: digest.html || "" }} />
+      <div
+        className="ap-body"
+        onClick={e => {
+          const a = (e.target as Element).closest?.("a[href]");
+          if (a) { e.preventDefault(); openArea(a.getAttribute("href")!); }
+        }}
+        dangerouslySetInnerHTML={{ __html: digest.html || "" }}
+      />
     </div>
   );
 }

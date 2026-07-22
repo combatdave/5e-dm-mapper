@@ -310,6 +310,7 @@ body.haspad .edbar{left:auto;right:10px;transform:none}
 .ac-open{
   background:var(--bg);border:1px solid var(--line);border-radius:7px;color:var(--text);
   font:600 11px var(--font);padding:3px 8px;cursor:pointer;white-space:nowrap;
+  text-decoration:none;display:inline-block;
 }
 .ac-open:hover{border-color:var(--brass)}
 .ac-read{margin:0;color:var(--text);font-style:italic;font-family:var(--serif);

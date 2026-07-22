@@ -10,17 +10,9 @@ import {
 } from "./modules";
 import { SaveImporter } from "./SaveImport";
 import { ConfirmDialog, PromptDialog } from "./Dialogs";
+import { saveFile } from "./helpers";
 
 type Bundle = ReturnType<typeof parseBundleFile>;
-
-function downloadJson(name: string, json: string) {
-  const a = document.createElement("a");
-  const blob = new Blob([json], { type: "application/json" });
-  a.href = URL.createObjectURL(blob);
-  a.download = name;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-}
 
 export function Home({ modules, onOpen, onCreate, onDelete, onRename }: {
   modules: ModuleDef[];
@@ -55,12 +47,12 @@ export function Home({ modules, onOpen, onCreate, onDelete, onRename }: {
   }
 
   const exportOne = (m: ModuleDef) =>
-    downloadJson(
+    void saveFile(
       m.title.replace(/\W+/g, "-").replace(/^-|-$/g, "").toLowerCase() + ".dmmap.json",
       exportPageBundle(m, collectPinsByMap(m)),
     );
 
-  const exportAll = () => downloadJson("dm-mapper-pages.dmmap.json", exportAllBundles(modules));
+  const exportAll = () => void saveFile("dm-mapper-pages.dmmap.json", exportAllBundles(modules));
 
   return (
     <>

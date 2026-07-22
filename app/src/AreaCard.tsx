@@ -4,8 +4,9 @@
  * might face soon without opening anything.
  */
 import type { AreaDigest } from "./mhtml";
+import { TEXT_TAB } from "./helpers";
 
-export function AreaCard({ num, name, digest, href, mark, left, top, above, onOpenText, onOpenCreature, onClose }: {
+export function AreaCard({ num, name, digest, href, mark, left, top, above, onOpenCreature, onClose }: {
   num: string;
   name?: string;
   digest?: AreaDigest;
@@ -14,7 +15,6 @@ export function AreaCard({ num, name, digest, href, mark, left, top, above, onOp
   left: number;
   top: number;
   above: boolean;
-  onOpenText: () => void;
   onOpenCreature: (href: string) => void;
   onClose: () => void;
 }) {
@@ -28,7 +28,7 @@ export function AreaCard({ num, name, digest, href, mark, left, top, above, onOp
     >
       <div className="ac-head">
         <b>{num}{name ? `. ${name}` : ""}</b>
-        {href && <button className="ac-open" onClick={onOpenText}>open ↗</button>}
+        {href && <a className="ac-open" href={href} target={TEXT_TAB}>open ↗</a>}
       </div>
       {mark === "T" && (digest?.traps
         ? <p className="ac-hazard"><b>trap</b>{digest.traps.replace(/^[^.:]{0,48}[.:]\s*/, "")}</p>

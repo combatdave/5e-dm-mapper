@@ -485,7 +485,6 @@ export const MapView = forwardRef<MapHandle, Props>(function MapView(
           left={cardData.left}
           top={cardData.top}
           above={cardData.above}
-          onOpenText={() => { const h = hrefFor(cardData.pin); if (h) openArea(h); }}
           onOpenCreature={h => openArea(h)}
           onClose={() => setCard(null)}
         />
