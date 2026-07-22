@@ -11,6 +11,7 @@ import { PinStore } from "./pins";
 import { MapView } from "./MapView";
 import type { MapHandle } from "./MapView";
 import { AreaPanel } from "./AreaPanel";
+import { RoomFinder } from "./RoomFinder";
 
 export function ModuleView({ module, onBack, onUpdate }: {
   module: ModuleDef;
@@ -70,9 +71,11 @@ export function ModuleView({ module, onBack, onUpdate }: {
   const pinnedRooms = new Set(stores.flatMap(s => s.pins).filter(p => !p.mark).map(p => p.label));
   const chipRooms = module.expected.filter(n => module.names[n] || module.hrefs[n]);
 
-  const onChipClick = (e: React.MouseEvent, num: string) => {
-    if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button !== 0) return;
-    e.preventDefault();
+  const onRoomPick = (e: React.MouseEvent | null, num: string) => {
+    if (e) {
+      if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button !== 0) return;
+      e.preventDefault();
+    }
     if (mapRefs.current[activeMap]?.locate(num)) return;
     if (openAreaPanel(num)) return;
     const href = module.hrefs[num] || module.sourceUrl;
@@ -95,6 +98,16 @@ export function ModuleView({ module, onBack, onUpdate }: {
               ? <a href={module.sourceUrl} target="_blank" rel="noopener">{module.title}</a>
               : module.title}
           </h1>
+          {chipRooms.length > 0 && (
+            <RoomFinder
+              rooms={chipRooms}
+              names={module.names}
+              hrefs={module.hrefs}
+              sourceUrl={module.sourceUrl}
+              pinned={pinnedRooms}
+              onPick={onRoomPick}
+            />
+          )}
           <div className="actions">
             {editing && (
               <SaveImporter
@@ -123,23 +136,6 @@ export function ModuleView({ module, onBack, onUpdate }: {
                   onClick={() => setActiveMap(i)}>
                   {m.title}
                 </button>
-              ))}
-            </div>
-          )}
-          {chipRooms.length > 0 && (
-            <div className="chips">
-              {chipRooms.map(num => (
-                <a
-                  key={num}
-                  href={module.hrefs[num] || module.sourceUrl || undefined}
-                  target="_blank"
-                  rel="noopener"
-                  data-pin={num}
-                  className={pinnedRooms.has(num) ? undefined : "nopin"}
-                  onClick={e => onChipClick(e, num)}
-                >
-                  <b>{num}</b>{module.names[num] || ""}
-                </a>
               ))}
             </div>
           )}

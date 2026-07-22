@@ -53,7 +53,12 @@ downloading it onto a tablet works just as well.
    "import from D&D Beyond" (text only) on older pages to refresh
    their digests.
 
-   **Click a pin** (or a pinless chip) and the area's own section
+   The header's **room finder** covers search, browse and jump: focus
+   it for a scannable list of every room, type a number or part of a
+   name to filter, Enter (or a click) flies the map to that room's
+   pin.
+
+   **Click a pin** (or a pinless room in the finder) and the area's own section
    from the saved page opens in a book-styled reader panel — no more
    scrolling the whole D&D Beyond page hunting for a room. Every link
    inside (monsters, spells, cross-references) opens on D&D Beyond in
@@ -96,11 +101,12 @@ Layout:
 - `app/src/App.tsx` — routing: library ↔ module
 - `app/src/Home.tsx` — library screen
 - `app/src/SaveImport.tsx` — shared upload button + map-image picker
-- `app/src/ModuleView.tsx` — one module: header, chips, map tabs
+- `app/src/ModuleView.tsx` — one module: header, room finder, map tabs
+- `app/src/RoomFinder.tsx` — search / browse / jump-to-room dropdown
 - `app/src/MapView.tsx` — pan/zoom viewport, pins, the whole edit mode
 - `app/src/AreaCard.tsx` — hover/long-press at-a-glance card
 - `app/src/AreaPanel.tsx` — book-styled reader for one area's section
-- `app/src/EditChrome.tsx` — action bar, typed-input placement, nudge pad, export panel
+- `app/src/EditChrome.tsx` — action bar, typed-input placement, nudge pad
 - `app/src/mhtml.ts` — MHTML / HTML save parsing
 - `app/src/modules.ts` — module model + IndexedDB persistence
 - `app/src/pins.ts` — pin model + localStorage persistence
