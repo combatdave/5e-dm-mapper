@@ -6,13 +6,12 @@ room — that room's text opens in your D&D Beyond copy of the module.
 
 **Maps:**
 
-- [`dist/index.html`](dist/index.html) — The Sunless Citadel, Fortress Level
+- [`index.html`](index.html) — The Sunless Citadel, Fortress Level
 
-The app is served from `dist/` by GitHub Pages
-(`.github/workflows/pages.yml` deploys it on every push to `main`;
-one-time setup: repo **Settings → Pages → Source: GitHub Actions**).
-The file is fully self-contained, so downloading it onto a tablet works
-just as well.
+GitHub Pages serves the repo root of `main` (repo **Settings → Pages →
+Deploy from a branch → `main` / `/ (root)`**), so every push updates the
+live page. The file is fully self-contained, so downloading it onto a
+tablet works just as well.
 
 ## Objectives
 
@@ -55,7 +54,7 @@ for everyone:
    the export's contents, then commit and push to redeploy:
 
    ```
-   python3 bake_pins.py user_pins.json dist/index.html
+   python3 bake_pins.py user_pins.json index.html
    ```
 
 Baked-in state right now: **complete** — all 41 Fortress Level rooms
