@@ -4,14 +4,12 @@
  */
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { ModuleDef } from "./modules";
-import { exportPageBundle, mergeSaveIntoModule, pinStoreKey } from "./modules";
-import type { PinsByMap } from "./modules";
+import { mergeSaveIntoModule, pinStoreKey } from "./modules";
 import { SaveImporter } from "./SaveImport";
 import { openArea } from "./helpers";
 import { PinStore } from "./pins";
 import { MapView } from "./MapView";
 import type { MapHandle } from "./MapView";
-import { ExportPanel } from "./EditChrome";
 import { AreaPanel } from "./AreaPanel";
 
 export function ModuleView({ module, onBack, onUpdate }: {
@@ -20,7 +18,6 @@ export function ModuleView({ module, onBack, onUpdate }: {
   onUpdate: (m: ModuleDef) => void;
 }) {
   const [editing, setEditing] = useState(false);
-  const [exportJson, setExportJson] = useState<string | null>(null);
   const [activeMap, setActiveMap] = useState(0);
   const [panelNum, setPanelNum] = useState<string | null>(null);
   const mapRefs = useRef<(MapHandle | null)[]>([]);
@@ -50,7 +47,6 @@ export function ModuleView({ module, onBack, onUpdate }: {
 
   useEffect(() => {
     document.body.classList.toggle("editing", editing);
-    if (!editing) setExportJson(null);
     if (editing) setPanelNum(null);
     return () => document.body.classList.remove("editing");
   }, [editing]);
@@ -71,16 +67,7 @@ export function ModuleView({ module, onBack, onUpdate }: {
   /* hidden maps have zero size; refit when a tab becomes active */
   useEffect(() => { mapRefs.current[activeMap]?.refit(); }, [activeMap]);
 
-  const allPins = stores.flatMap(s => s.pins);
-  const pinnedRooms = new Set(allPins.filter(p => !p.mark).map(p => p.label));
-  const markCount = allPins.filter(p => p.mark).length;
-  const pinned = module.expected.filter(n => pinnedRooms.has(n)).length;
-  const countText =
-    (pinned === module.expected.length
-      ? `${module.expected.length} rooms`
-      : `${pinned}/${module.expected.length} rooms pinned`) +
-    (markCount ? ` · ${markCount} marker${markCount === 1 ? "" : "s"}` : "");
-
+  const pinnedRooms = new Set(stores.flatMap(s => s.pins).filter(p => !p.mark).map(p => p.label));
   const chipRooms = module.expected.filter(n => module.names[n] || module.hrefs[n]);
 
   const onChipClick = (e: React.MouseEvent, num: string) => {
@@ -90,30 +77,6 @@ export function ModuleView({ module, onBack, onUpdate }: {
     if (openAreaPanel(num)) return;
     const href = module.hrefs[num] || module.sourceUrl;
     if (href) openArea(href);
-  };
-
-  const exportPins = () => {
-    mapRefs.current.forEach(r => r?.closeChrome());
-    const payload = stores.length === 1
-      ? stores[0].rawUserPins()
-      : Object.fromEntries(stores.map((s, i) => [i, s.rawUserPins()]));
-    setExportJson(JSON.stringify(payload, null, 1));
-  };
-
-  const exportPage = () => {
-    const pinsByMap: PinsByMap = {};
-    stores.forEach((s, i) => {
-      const labels: Record<string, [number, number][]> = {};
-      for (const p of s.pins) (labels[p.label] ||= []).push([Math.round(p.x), Math.round(p.y)]);
-      if (Object.keys(labels).length) pinsByMap[String(i)] = labels;
-    });
-    const json = exportPageBundle(module, pinsByMap);
-    const a = document.createElement("a");
-    const blob = new Blob([json], { type: "application/json" });
-    a.href = URL.createObjectURL(blob);
-    a.download = module.title.replace(/\W+/g, "-").replace(/^-|-$/g, "").toLowerCase() + ".dmmap.json";
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   };
 
   const clearPins = () => {
@@ -127,7 +90,7 @@ export function ModuleView({ module, onBack, onUpdate }: {
       <header>
         <div className="masthead">
           <h1>
-            <button className="backbtn" aria-label="all maps" onClick={onBack}>‹</button>
+            <button className="backbtn" aria-label="back to library" onClick={onBack}>‹</button>
             {module.sourceUrl
               ? <a href={module.sourceUrl} target="_blank" rel="noopener">{module.title}</a>
               : module.title}
@@ -136,43 +99,33 @@ export function ModuleView({ module, onBack, onUpdate }: {
             {editing && (
               <SaveImporter
                 mode="merge"
-                buttonLabel="⇪ import save"
+                buttonLabel="⇪ import from D&D Beyond"
                 onPicked={(page, picked) => onUpdate(mergeSaveIntoModule(module, page, picked))}
               />
             )}
             {editing && (
-              <button className="btn" onClick={exportPage}>⤓ export page</button>
+              <button id="clearBtn" className="btn danger" onClick={clearPins}>✕ clear pins</button>
             )}
-            <button id="exportBtn" className="btn" onClick={exportPins}>⤓ export pins</button>
-            <button id="clearBtn" className="btn danger" onClick={clearPins}>✖ clear my pins</button>
-            <button id="editBtn" className="btn" onClick={() => setEditing(on => !on)}>
+            <button id="editBtn" className={"btn" + (editing ? " on" : "")}
+              onClick={() => setEditing(on => !on)}>
               {editing ? "✓ done" : "✎ edit"}
             </button>
           </div>
         </div>
-        <p className="sub" data-view="">
-          chip: find the room on the map · pin: open the area text · pinch / scroll to zoom, drag to pan
-        </p>
-        <p className="sub" data-edit="">
-          editing — tap the map, type the room number (t / s = trap / secret-door marker on the nearest room) · tap a pin to move or delete it
-        </p>
       </header>
 
       <main>
         <section className="level">
-          <div className="level-head">
-            <h2>
-              {module.maps.length > 1
-                ? module.maps.map((m, i) => (
-                  <button key={i} className={"maptab" + (i === activeMap ? " on" : "")}
-                    onClick={() => setActiveMap(i)}>
-                    {m.title}
-                  </button>
-                ))
-                : module.maps[0]?.title}
-            </h2>
-            <span className="count">{countText}</span>
-          </div>
+          {module.maps.length > 1 && (
+            <div className="maptabs">
+              {module.maps.map((m, i) => (
+                <button key={i} className={"maptab" + (i === activeMap ? " on" : "")}
+                  onClick={() => setActiveMap(i)}>
+                  {m.title}
+                </button>
+              ))}
+            </div>
+          )}
           {chipRooms.length > 0 && (
             <div className="chips">
               {chipRooms.map(num => (
@@ -214,8 +167,6 @@ export function ModuleView({ module, onBack, onUpdate }: {
           ))}
         </section>
       </main>
-
-      {exportJson !== null && <ExportPanel json={exportJson} onClose={() => setExportJson(null)} />}
     </>
   );
 }

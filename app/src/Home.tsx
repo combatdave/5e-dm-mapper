@@ -4,8 +4,20 @@
  */
 import { useRef, useState } from "react";
 import type { ModuleDef } from "./modules";
-import { buildModule, exportAllBundles, parseBundleFile, writeImportedPins } from "./modules";
+import {
+  buildModule, collectPinsByMap, exportAllBundles, exportPageBundle,
+  parseBundleFile, writeImportedPins,
+} from "./modules";
 import { SaveImporter } from "./SaveImport";
+
+function downloadJson(name: string, json: string) {
+  const a = document.createElement("a");
+  const blob = new Blob([json], { type: "application/json" });
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
 
 export function Home({ modules, onOpen, onCreate, onDelete, onRename }: {
   modules: ModuleDef[];
@@ -34,26 +46,21 @@ export function Home({ modules, onOpen, onCreate, onDelete, onRename }: {
     }
   }
 
-  function exportAll() {
-    const json = exportAllBundles(modules);
-    const a = document.createElement("a");
-    const blob = new Blob([json], { type: "application/json" });
-    a.href = URL.createObjectURL(blob);
-    a.download = "dm-mapper-pages.dmmap.json";
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-  }
+  const exportOne = (m: ModuleDef) =>
+    downloadJson(
+      m.title.replace(/\W+/g, "-").replace(/^-|-$/g, "").toLowerCase() + ".dmmap.json",
+      exportPageBundle(m, collectPinsByMap(m)),
+    );
+
+  const exportAll = () => downloadJson("dm-mapper-pages.dmmap.json", exportAllBundles(modules));
 
   return (
     <>
-      <header>
+      <header className="home-head">
         <div className="masthead">
           <h1>5e DM mapper</h1>
         </div>
-        <p className="sub">
-          save an adventure page from D&D Beyond (Ctrl/Cmd-S → “Webpage, Single File”), upload it here,
-          pick the map image, then pin the rooms — the map becomes the index of an interactive adventure book
-        </p>
+        <p className="sub">your D&D Beyond adventure pages as interactive maps</p>
       </header>
 
       <main className="home">
@@ -67,7 +74,11 @@ export function Home({ modules, onOpen, onCreate, onDelete, onRename }: {
                   {m.areas ? " · text" : ""}{m.builtin ? " · built-in" : ""}
                 </span>
               </button>
-              <button className="modrename" aria-label={"rename " + m.title}
+              <button className="modexp" aria-label={"export " + m.title} title="export this page"
+                onClick={() => exportOne(m)}>
+                ⤓
+              </button>
+              <button className="modrename" aria-label={"rename " + m.title} title="rename"
                 onClick={() => {
                   const t = prompt("Rename this page:", m.title);
                   if (t && t.trim()) onRename(m.id, t.trim());
@@ -75,7 +86,7 @@ export function Home({ modules, onOpen, onCreate, onDelete, onRename }: {
                 ✎
               </button>
               {!m.builtin && (
-                <button className="moddel" aria-label={"delete " + m.title}
+                <button className="moddel" aria-label={"delete " + m.title} title="delete"
                   onClick={() => { if (confirm(`Remove “${m.title}” and its saved maps? Pins in localStorage are kept.`)) onDelete(m.id); }}>
                   ✕
                 </button>
@@ -87,13 +98,14 @@ export function Home({ modules, onOpen, onCreate, onDelete, onRename }: {
         <div className="upload">
           <SaveImporter
             mode="create"
-            buttonLabel="⇪ upload a saved page (.mhtml / .html)"
-            buttonClass="btn big"
+            buttonLabel="＋ import from D&D Beyond"
+            buttonClass="btn big pri"
             onPicked={(page, picked) => onCreate(buildModule(page, picked))}
           />
+          <p className="uphint">save the adventure page first: Ctrl/Cmd-S → “Webpage, Single File”</p>
           <div className="uprow">
             <button className="btn" onClick={() => pageFileRef.current?.click()}>
-              ⇞ import pages (.dmmap.json)
+              ⇞ import pages
             </button>
             <button className="btn" onClick={exportAll}>
               ⤓ export all

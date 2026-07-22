@@ -1,7 +1,7 @@
 /* Floating edit-mode chrome, rendered into <body> via portals:
- * action bar (bottom), number rail (right), nudge d-pad (bottom left)
- * and the export panel. Pointer events are stopped at each panel so
- * taps never fall through to the map.
+ * action bar (bottom), typed placement input and nudge d-pad.
+ * Pointer events are stopped at each panel so taps never fall
+ * through to the map.
  */
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -99,79 +99,3 @@ export function NudgePad({ label, onNudge }: { label: string; onNudge: (dx: numb
   );
 }
 
-/* export panel: pin JSON with copy / share / download, each with
-   fallbacks (tablet browsers are picky about all three) */
-export function ExportPanel({ json, onClose }: { json: string; onClose: () => void }) {
-  const taRef = useRef<HTMLTextAreaElement>(null);
-  const copyRef = useRef<HTMLButtonElement>(null);
-  const dlRef = useRef<HTMLButtonElement>(null);
-
-  const flash = (b: HTMLButtonElement | null, t: string, back: string) => {
-    if (!b) return;
-    b.textContent = t;
-    setTimeout(() => { b.textContent = back; }, 1400);
-  };
-
-  const copy = () => {
-    const b = copyRef.current;
-    const manual = () => {
-      try {
-        const ta = taRef.current!;
-        ta.focus(); ta.select();
-        if (document.execCommand && document.execCommand("copy")) { flash(b, "copied ✓", "copy"); return; }
-      } catch { /* fall through */ }
-      flash(b, "select text above", "copy");
-    };
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(json).then(() => flash(b, "copied ✓", "copy"), manual);
-        return;
-      }
-    } catch { /* fall through */ }
-    manual();
-  };
-
-  const share = () => {
-    try { navigator.share({ title: "user_pins.json", text: json }); } catch { /* user cancelled */ }
-  };
-
-  const download = () => {
-    const b = dlRef.current;
-    try {
-      const bl = new Blob([json], { type: "application/json" });
-      const u = URL.createObjectURL(bl);
-      const a = document.createElement("a");
-      a.href = u; a.download = "user_pins.json";
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => { try { URL.revokeObjectURL(u); } catch { /* gone */ } }, 2000);
-      flash(b, "sent ✓", "download");
-      return;
-    } catch { /* fall through */ }
-    try {
-      const a = document.createElement("a");
-      a.href = "data:application/json;charset=utf-8," + encodeURIComponent(json);
-      a.download = "user_pins.json";
-      document.body.appendChild(a); a.click(); a.remove();
-      flash(b, "sent ✓", "download");
-    } catch {
-      flash(b, "use copy instead", "download");
-    }
-  };
-
-  return createPortal(
-    <div className="edexp" onPointerDown={stop} onPointerUp={stop}>
-      <div>your pins</div>
-      <textarea ref={taRef} readOnly value={json}
-        onPointerUp={() => { try { taRef.current?.select(); } catch { /* ok */ } }} />
-      <div className="row">
-        <button ref={copyRef} onClick={e => { e.stopPropagation(); copy(); }}>copy</button>
-        {typeof navigator.share === "function" && (
-          <button onClick={e => { e.stopPropagation(); share(); }}>share</button>
-        )}
-        <button ref={dlRef} onClick={e => { e.stopPropagation(); download(); }}>download</button>
-        <button onClick={e => { e.stopPropagation(); onClose(); }}>close</button>
-      </div>
-    </div>,
-    document.body,
-  );
-}

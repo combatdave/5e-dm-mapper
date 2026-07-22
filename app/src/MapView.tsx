@@ -428,7 +428,7 @@ export const MapView = forwardRef<MapHandle, Props>(function MapView(
             ? <img ref={imgRef} src={imgSrc} width={map.width} height={map.height}
                 alt={map.title + " map"} />
             : <div className="noimg" style={{ width: map.width, height: map.height }}>
-                map image not attached — use ⇪ import save (edit mode)
+                no map image — open ✎ edit and use “import from D&D Beyond”
               </div>}
           {store.pins.map(p => {
             const num = p.label.replace(/^[TS]/, "");
@@ -454,6 +454,9 @@ export const MapView = forwardRef<MapHandle, Props>(function MapView(
           })}
         </div>
       </div>
+      {editing && !chrome.bar && !chrome.place && !chrome.pad && (
+        <div className="edhint">tap the map to add a pin · tap a pin to move or delete</div>
+      )}
       <div className="zoomctl">
         <button className="zin" aria-label="zoom in" onClick={() => zoomBy(1.45)}>+</button>
         <button className="zout" aria-label="zoom out" onClick={() => zoomBy(1 / 1.45)}>−</button>

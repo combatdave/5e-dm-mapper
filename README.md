@@ -27,11 +27,11 @@ downloading it onto a tablet works just as well.
 
    A save often holds several maps (the Citadel's fortress and grove
    levels share one page): inside a page, edit mode has **⇪ import
-   save** — upload the same file again to add its other maps as tabs
-   and merge in the area text, links and names. Existing pins are
-   untouched, duplicate maps are skipped, and importing with no maps
-   selected attaches the text alone (that's how the built-in page
-   gets its reader).
+   from D&D Beyond** — upload the same file again to add its other
+   maps as tabs and merge in the area text, links and names. Existing
+   pins are untouched, duplicate maps are skipped, and importing with
+   no maps selected attaches the text alone (that's how the built-in
+   page gets its reader).
 
 2. **Annotate.** In **edit** mode, tap the map and a focused
    input opens: type the room number and press enter — the pin lands
@@ -48,9 +48,10 @@ downloading it onto a tablet works just as well.
 
    **Hover a pin** (long-press on touch) for the at-a-glance card:
    read-aloud opener, creatures with counts, DCs, and hazard lead-in
-   paragraphs ("Arrow Trap.", "Secret Door.", …) from the text —
-   hovering a T/S marker shows its room's hazards directly. Re-run
-   "import save" (text only) on older pages to refresh their digests.
+   paragraphs ("Arrow Trap.", "Hidden Pit.", "Secret Door.", …) from
+   the text — hovering a T/S marker shows only its hazard. Re-run
+   "import from D&D Beyond" (text only) on older pages to refresh
+   their digests.
 
    **Click a pin** (or a pinless chip) and the area's own section
    from the saved page opens in a book-styled reader panel — no more
@@ -62,15 +63,14 @@ downloading it onto a tablet works just as well.
    stored text — upload your own save to get the reader.)
 
 4. **Save & export.** Pins live per-device in `localStorage`
-   (`edpins:<module id>`, unchanged from earlier builds). **⤓ export
-   pins** shows the JSON with copy / share / download; **✖ clear my
-   pins** resets the device.
-
-   **⤓ export page** (edit mode) downloads your whole page as a small
-   `.dmmap.json` — title, links, room names, map slots and every pin,
-   but no map images and no adventure text. **⇞ import a page file**
-   on the library screen recreates it on another machine; the maps
-   show as empty slots until you **⇪ import save** there, which fills
+   (`edpins:<module id>`, unchanged from earlier builds); **✕ clear
+   pins** (edit mode) resets the device. All exporting lives on the
+   library screen: each page card's **⤓** downloads that page as a
+   small `.dmmap.json` — title, links, room names, map slots and
+   every pin, but no map images and no adventure text — and
+   **⤓ export all** bundles every page into one file. **⇞ import
+   pages** recreates them on another machine; the maps show as empty
+   slots until you **⇪ import from D&D Beyond** there, which fills
    the matching slots and attaches the text. Your work travels as a
    clean little file; the content re-attaches from your own save.
 

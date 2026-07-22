@@ -88,8 +88,8 @@ export function SaveImporter({ buttonLabel, buttonClass, mode, onPicked }: {
             <div className="pickerhead">
               <b>{picker.page.title}</b>
               <span>
-                {picker.candidates.length} images found — tap the map(s)
-                {mode === "merge" ? " to add; none selected imports the text only" : ""}
+                pick the map image{picker.candidates.length === 1 ? "" : "(s)"}
+                {mode === "merge" ? " — pick none to import just the text" : ""}
               </span>
             </div>
             <div className="pickergrid">
@@ -111,8 +111,8 @@ export function SaveImporter({ buttonLabel, buttonClass, mode, onPicked }: {
               <button className="btn" onClick={() => setPicker(null)}>cancel</button>
               <button className="btn pri" disabled={mode === "create" && !n} onClick={confirm}>
                 {mode === "create"
-                  ? `add module (${n} map${n === 1 ? "" : "s"})`
-                  : n ? `import (${n} map${n === 1 ? "" : "s"} + text)` : "import text only"}
+                  ? `add page${n ? ` · ${n} map${n === 1 ? "" : "s"}` : ""}`
+                  : n ? `add ${n} map${n === 1 ? "" : "s"} + text` : "import text only"}
               </button>
             </div>
           </div>
