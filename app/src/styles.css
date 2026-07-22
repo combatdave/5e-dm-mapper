@@ -153,6 +153,11 @@ main.home{gap:14px}
 body.editing .viewport{outline:2px dashed #42f59e44;outline-offset:-2px}
 .world{position:absolute;left:0;top:0;transform-origin:0 0}
 .world img{display:block;pointer-events:none;user-select:none;-webkit-user-drag:none}
+.world .noimg{
+  display:flex;align-items:center;justify-content:center;text-align:center;
+  background:repeating-linear-gradient(45deg,#12161b,#12161b 14px,#161b21 14px,#161b21 28px);
+  color:var(--dim);font-size:13px;padding:20px;pointer-events:none;
+}
 
 .zoomctl{position:absolute;right:10px;bottom:10px;z-index:5;display:flex;flex-direction:column;gap:6px}
 .zoomctl button{

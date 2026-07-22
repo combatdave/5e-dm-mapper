@@ -4,7 +4,8 @@
  */
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { ModuleDef } from "./modules";
-import { mergeSaveIntoModule, pinStoreKey } from "./modules";
+import { exportPageBundle, mergeSaveIntoModule, pinStoreKey } from "./modules";
+import type { PinsByMap } from "./modules";
 import { SaveImporter } from "./SaveImport";
 import { openArea } from "./helpers";
 import { PinStore } from "./pins";
@@ -99,6 +100,22 @@ export function ModuleView({ module, onBack, onUpdate }: {
     setExportJson(JSON.stringify(payload, null, 1));
   };
 
+  const exportPage = () => {
+    const pinsByMap: PinsByMap = {};
+    stores.forEach((s, i) => {
+      const labels: Record<string, [number, number][]> = {};
+      for (const p of s.pins) (labels[p.label] ||= []).push([Math.round(p.x), Math.round(p.y)]);
+      if (Object.keys(labels).length) pinsByMap[String(i)] = labels;
+    });
+    const json = exportPageBundle(module, pinsByMap);
+    const a = document.createElement("a");
+    const blob = new Blob([json], { type: "application/json" });
+    a.href = URL.createObjectURL(blob);
+    a.download = module.title.replace(/\W+/g, "-").replace(/^-|-$/g, "").toLowerCase() + ".dmmap.json";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+
   const clearPins = () => {
     if (!confirm("Delete all pins you placed on this device?")) return;
     stores.forEach(s => s.clearStored());
@@ -122,6 +139,9 @@ export function ModuleView({ module, onBack, onUpdate }: {
                 buttonLabel="⇪ import save"
                 onPicked={(page, picked) => onUpdate(mergeSaveIntoModule(module, page, picked))}
               />
+            )}
+            {editing && (
+              <button className="btn" onClick={exportPage}>⤓ export page</button>
             )}
             <button id="exportBtn" className="btn" onClick={exportPins}>⤓ export pins</button>
             <button id="clearBtn" className="btn danger" onClick={clearPins}>✖ clear my pins</button>

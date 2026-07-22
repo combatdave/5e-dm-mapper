@@ -423,8 +423,12 @@ export const MapView = forwardRef<MapHandle, Props>(function MapView(
     <div className="map">
       <div className="viewport" ref={vpRef}>
         <div className="world" ref={worldRef}>
-          <img ref={imgRef} src={imgSrc} width={map.width} height={map.height}
-            alt={map.title + " map"} />
+          {imgSrc
+            ? <img ref={imgRef} src={imgSrc} width={map.width} height={map.height}
+                alt={map.title + " map"} />
+            : <div className="noimg" style={{ width: map.width, height: map.height }}>
+                map image not attached — use ⇪ import save (edit mode)
+              </div>}
           {store.pins.map(p => {
             const num = p.label.replace(/^[TS]/, "");
             const creatures = !p.mark ? module.areas?.[num]?.creatures : undefined;

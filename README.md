@@ -61,6 +61,14 @@ downloading it onto a tablet works just as well.
    pins** shows the JSON with copy / share / download; **✖ clear my
    pins** resets the device.
 
+   **⤓ export page** (edit mode) downloads your whole page as a small
+   `.dmmap.json` — title, links, room names, map slots and every pin,
+   but no map images and no adventure text. **⇞ import a page file**
+   on the library screen recreates it on another machine; the maps
+   show as empty slots until you **⇪ import save** there, which fills
+   the matching slots and attaches the text. Your work travels as a
+   clean little file; the content re-attaches from your own save.
+
 The Sunless Citadel (Fortress Level) ships built in, with all 41 rooms
 and 11 trap/secret-door markers pinned. To update its baked pins,
 replace [`user_pins.json`](user_pins.json) with a fresh export and

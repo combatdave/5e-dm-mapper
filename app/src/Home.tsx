@@ -2,8 +2,9 @@
  * saved from D&D Beyond (Webpage, Single File → .mhtml, or plain
  * .html), pick which of its images are the maps, done.
  */
+import { useRef, useState } from "react";
 import type { ModuleDef } from "./modules";
-import { buildModule } from "./modules";
+import { buildModule, importPageBundle, writeImportedPins } from "./modules";
 import { SaveImporter } from "./SaveImport";
 
 export function Home({ modules, onOpen, onCreate, onDelete, onRename }: {
@@ -13,6 +14,22 @@ export function Home({ modules, onOpen, onCreate, onDelete, onRename }: {
   onDelete: (id: string) => void;
   onRename: (id: string, title: string) => void;
 }) {
+  const pageFileRef = useRef<HTMLInputElement>(null);
+  const [pageError, setPageError] = useState("");
+
+  async function handlePageFile(file: File) {
+    setPageError("");
+    try {
+      const { module, pins } = importPageBundle(await file.text());
+      if (modules.some(m => m.id === module.id) &&
+          !confirm(`“${module.title}” already exists — replace it (pins included)?`)) return;
+      writeImportedPins(module.id, pins);
+      onCreate(module);
+    } catch (e) {
+      setPageError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
   return (
     <>
       <header>
@@ -60,6 +77,12 @@ export function Home({ modules, onOpen, onCreate, onDelete, onRename }: {
             buttonClass="btn big"
             onPicked={(page, picked) => onCreate(buildModule(page, picked))}
           />
+          <button className="btn" onClick={() => pageFileRef.current?.click()}>
+            ⇞ import a page file (.dmmap.json)
+          </button>
+          <input ref={pageFileRef} type="file" accept=".json,application/json" hidden
+            onChange={e => { const f = e.target.files?.[0]; if (f) void handlePageFile(f); e.target.value = ""; }} />
+          {pageError && <p className="uperror">{pageError}</p>}
         </div>
       </main>
     </>

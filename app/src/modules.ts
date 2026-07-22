@@ -97,8 +97,16 @@ export function mergeSaveIntoModule(
   picked: { image: PageImage; width: number; height: number }[],
 ): ModuleDef {
   const fresh = buildModule(page, picked);
-  const maps = [...m.maps];
+  const maps = m.maps.map(x => ({ ...x }));
   for (const nm of fresh.maps) {
+    /* an imported page bundle carries imageless map slots — a matching
+       map from the save fills the slot instead of adding a tab */
+    const empty = maps.find(x => !x.url && !x.blob && x.width === nm.width && x.height === nm.height);
+    if (empty) {
+      empty.blob = nm.blob; empty.url = nm.url;
+      if (nm.player) empty.player = true;
+      continue;
+    }
     const dup = maps.some(x => {
       if (nm.url && x.url) return x.url === nm.url;
       if (x.width !== nm.width || x.height !== nm.height) return false;
@@ -123,6 +131,74 @@ export function mergeSaveIntoModule(
 
 export const pinStoreKey = (moduleId: string, mapIndex: number) =>
   "edpins:" + moduleId + (mapIndex ? ":" + mapIndex : "");
+
+/* ---------- page bundles: your work as a small portable file ---------
+   Title, links, room names, map slots (dimensions only — no images)
+   and every pin. No adventure text and no map images: re-attach those
+   on the destination with "import save". */
+
+export type PinsByMap = Record<string, Record<string, [number, number][]>>;
+
+export function exportPageBundle(m: ModuleDef, pinsByMap: PinsByMap): string {
+  return JSON.stringify({
+    format: "5e-dm-mapper-page",
+    version: 1,
+    id: m.id,
+    title: m.title,
+    sourceUrl: m.sourceUrl,
+    names: m.names,
+    hrefs: m.hrefs,
+    expected: m.expected,
+    maps: m.maps.map(x => ({
+      title: x.title,
+      width: x.width,
+      height: x.height,
+      player: x.player || undefined,
+      /* keep only shareable remote urls; blobs and the bundled data
+         URI come back via "import save" */
+      url: x.url && /^https?:/.test(x.url) ? x.url : undefined,
+      bundled: x.url?.startsWith("data:") || undefined,
+    })),
+    pins: pinsByMap,
+  }, null, 1);
+}
+
+export function importPageBundle(json: string): { module: ModuleDef; pins: PinsByMap } {
+  const b = JSON.parse(json);
+  if (b?.format !== "5e-dm-mapper-page" || !Array.isArray(b.maps) || !b.id)
+    throw new Error("Not a page file — expected an export from “⤓ export page”.");
+  const module: ModuleDef = sanitizeModule({
+    id: String(b.id),
+    title: String(b.title || "Imported page"),
+    sourceUrl: String(b.sourceUrl || ""),
+    names: b.names || {},
+    hrefs: b.hrefs || {},
+    expected: Array.isArray(b.expected) && b.expected.length ? b.expected.map(String) : GENERIC_EXPECTED,
+    maps: b.maps.map((x: Record<string, unknown>, i: number) => ({
+      title: String(x.title || `Map ${i + 1}`),
+      width: Number(x.width) || 100,
+      height: Number(x.height) || 100,
+      player: x.player ? true : undefined,
+      url: typeof x.url === "string" && /^https?:/.test(x.url) ? x.url
+        /* the bundled built-in map can be restored locally */
+        : (x.bundled && String(b.id) === BUILTIN.id
+            ? BUILTIN.maps.find(bm => bm.width === Number(x.width) && bm.height === Number(x.height))?.url
+            : undefined),
+    })),
+    builtin: String(b.id) === BUILTIN.id || undefined,
+    basePins: String(b.id) === BUILTIN.id ? BUILTIN.basePins : undefined,
+  });
+  const pins: PinsByMap = (b.pins && typeof b.pins === "object") ? b.pins : {};
+  return { module, pins };
+}
+
+/* imported pins land in the page's normal pin storage */
+export function writeImportedPins(moduleId: string, pins: PinsByMap) {
+  try {
+    for (const [idx, labels] of Object.entries(pins))
+      localStorage.setItem(pinStoreKey(moduleId, Number(idx)), JSON.stringify(labels));
+  } catch { /* private mode */ }
+}
 
 /* location links must always be base#AreaAnchor — saves made while a
    page was scrolled used to store base#ScrollAnchor#AreaAnchor */
