@@ -1,17 +1,13 @@
 /* The map viewport: pan / pinch / zoom, tap-a-pin-to-open, chip
- * fly-to, and the whole edit mode (tap-to-recognize placement,
- * confirm bar, number/mark rails, nudge pad, mouse drag).
+ * fly-to, and edit mode: tap an empty spot and a focused input opens —
+ * type the room number (or t / s for a trap / secret-door marker,
+ * which links itself to the nearest room pin) and press enter. Pins
+ * can be nudged (d-pad), dragged (mouse) and deleted.
  *
  * Pan/zoom state lives in refs and is applied imperatively to the
  * world element (a CSS transform plus a --pin-scale variable that
  * counter-scales pins), so nothing re-renders at 60fps. React owns
  * the pin list and the floating edit chrome.
- *
- * Recognition sources, in order of preference: glyphs sampled from
- * the map itself (built-in module), glyphs learned from this map's
- * confirmed placements, canvas-rendered generic fonts. If the image
- * can't be read at all (remote image on a plain-HTML save → tainted
- * canvas), tapping falls back to picking the label from the rail.
  */
 import {
   forwardRef, useEffect, useImperativeHandle, useRef, useState,
@@ -19,13 +15,10 @@ import {
 } from "react";
 import type { MapDef, ModuleDef } from "./modules";
 import { clamp, MAX_ZOOM, MIN_ZOOM, openArea, pinTitle } from "./helpers";
-import { rankGuesses, toGrayscale } from "./recognize";
-import { learnDigits, rankBySegmentation, segmentations } from "./segment";
-import type { SegGuess } from "./segment";
 import { PinStore } from "./pins";
-import type { Pin, PlaceResult } from "./pins";
-import { EditBar, NudgePad, Rail } from "./EditChrome";
-import type { BarItem, RailEntry } from "./EditChrome";
+import type { Pin } from "./pins";
+import { EditBar, NudgePad, PlaceInput } from "./EditChrome";
+import type { BarItem } from "./EditChrome";
 
 export interface MapHandle {
   locate(label: string): boolean;
@@ -36,10 +29,10 @@ export interface MapHandle {
 interface ChromeState {
   bar: BarItem[] | null;
   pad: { pinId: number } | null;
-  rail: RailEntry[] | null;
+  place: { x: number; y: number } | null;   // typed-input placement point
 }
 
-const NO_CHROME: ChromeState = { bar: null, pad: null, rail: null };
+const NO_CHROME: ChromeState = { bar: null, pad: null, place: null };
 
 const pct = (v: number, total: number) => (v / total * 100).toFixed(2) + "%";
 
@@ -49,11 +42,10 @@ interface Props {
   imgSrc: string;
   store: PinStore;
   editing: boolean;
-  onLearned?: (learned: NonNullable<ModuleDef["learnedDigits"]>) => void;
 }
 
 export const MapView = forwardRef<MapHandle, Props>(function MapView(
-  { module, map, imgSrc, store, editing, onLearned }, ref,
+  { module, map, imgSrc, store, editing }, ref,
 ) {
   const vpRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
@@ -67,14 +59,11 @@ export const MapView = forwardRef<MapHandle, Props>(function MapView(
   useEffect(() => {
     editingRef.current = editing;
     setChrome(NO_CHROME);          // entering or leaving edit mode resets the chrome
-    curRef.current = null;
   }, [editing]);
 
   /* ----- viewer state (refs: no re-render while panning) ----- */
   const view = useRef({ s: 1, tx: 0, ty: 0, fitS: 1 });
   const animRef = useRef<number | null>(null);
-  const curRef = useRef<PlaceResult | null>(null);
-  const grayRef = useRef<Float32Array | null>(null);
   const methods = useRef({
     locate: (_: string) => false as boolean,
     refit: () => {},
@@ -92,7 +81,7 @@ export const MapView = forwardRef<MapHandle, Props>(function MapView(
   };
 
   useEffect(() => {
-    const vp = vpRef.current!, world = worldRef.current!, img = imgRef.current!;
+    const vp = vpRef.current!, world = worldRef.current!;
     const v = view.current;
     const W = map.width, H = map.height;
     const ptrs = new Map<number, [number, number]>();
@@ -157,137 +146,9 @@ export const MapView = forwardRef<MapHandle, Props>(function MapView(
       return true;
     };
 
-    /* ----- edit mode: tap placement + confirm flow ----- */
-    const closeRail = () => setChrome(c => ({ ...c, rail: null }));
-
-    function fullRailEntries(onPick: (sn: string) => void): RailEntry[] {
-      const entries: [string, string][] = ([["T", "T mark"], ["S", "S mark"]] as [string, string][])
-        .concat(module.expected.slice().sort((a, b) => +a - +b).map(sn => [sn, sn] as [string, string]));
-      return entries.map(([sn, txt]) => ({
-        text: txt,
-        cls: sn === "T" || sn === "S" ? "mkb" : undefined,
-        onTap: () => { closeRail(); onPick(sn); },
-      }));
-    }
-
-    /* rail for picking which room a new T/S marker belongs to */
-    function markRailEntries(prefix: string, onPick: (lb: string) => void): RailEntry[] {
-      const head: RailEntry = { text: prefix + " #", cls: "mkb", onTap: closeRail };
-      return [head].concat(
-        module.expected.slice().sort((a, b) => +a - +b).map(sn => ({
-          text: prefix + sn,
-          onTap: () => { closeRail(); onPick(prefix + sn); },
-        })),
-      );
-    }
-
-    /* a scored placement option for one label, from either recognizer */
-    interface Cand { label: string; score: number; x: number; y: number; learn?: SegGuess }
-
+    /* ----- edit mode: tap an empty spot → typed placement ----- */
     function tapPlace(mx: number, my: number) {
-      closeRail();
-
-      const byLabel = new Map<string, Cand>();
-      let ordered: Cand[] = [];
-      const placed = new Set(store.pins.filter(p => !p.mark).map(p => p.label));
-
-      if (!grayRef.current && img.complete && img.naturalWidth) {
-        try { grayRef.current = toGrayscale(img); } catch { /* tainted canvas */ }
-      }
-      const gray = grayRef.current;
-
-      if (gray && module.glyphs) {
-        /* built-in map: template matching with its own sampled glyphs */
-        const ranked = rankGuesses([module.glyphs], gray, W, H,
-          Math.round(mx), Math.round(my), module.expected, placed);
-        ordered = ranked.map(r => ({ label: r[1], score: r[0], x: r[2], y: r[3] }));
-      } else if (gray) {
-        /* upload: segment the glyphs under the tap, classify against
-           rendered fonts + whatever this map has taught us */
-        const segs = segmentations(gray, W, H, mx, my);
-        if (segs.length) {
-          const ranked = rankBySegmentation(segs, module.expected, placed,
-            module.learnedDigits ?? null);
-          ordered = ranked.map(r => ({ label: r.label, score: r.score, x: r.x, y: r.y, learn: r }));
-        }
-      }
-      for (const c of ordered) if (!byLabel.has(c.label)) byLabel.set(c.label, c);
-
-      /* confirming a label teaches the matcher this map's font */
-      const learnFrom = (label: string) => {
-        if (module.glyphs || !onLearned) return;
-        const c = byLabel.get(label);
-        if (!c?.learn) return;
-        const next = learnDigits(c.learn, module.learnedDigits ?? null);
-        if (next) onLearned(next);
-      };
-
-      function confirmBar(sn: string) {
-        setChrome(c => ({
-          ...c,
-          bar: [
-            { text: sn + " ✓", onTap: () => { closeRail(); learnFrom(sn); }, cls: "pri" },
-            { text: "123 ▾", onTap: openFullRail, keepOpen: true },
-            { text: "cancel", onTap: () => { store.revert(curRef.current); curRef.current = null; closeRail(); }, cls: "del" },
-          ],
-          pad: { pinId: curRef.current!.id },
-        }));
-      }
-      function commitLabel(sn: string) {
-        store.revert(curRef.current); closeRail();
-        const c = byLabel.get(sn);
-        const usePos = c && c.score >= (module.glyphs ? 0.5 : 0.4);
-        curRef.current = usePos
-          ? store.setPin(sn, c!.x, c!.y, false)
-          : store.setPin(sn, mx, my, false);
-        confirmBar(sn);
-      }
-      function commitMark(lb: string) {
-        store.revert(curRef.current); closeRail();
-        curRef.current = store.setPin(lb, mx, my, true);
-        confirmBar(lb);
-      }
-      function showMarkRail(prefix: string) {
-        setChrome(c => ({ ...c, rail: markRailEntries(prefix, commitMark) }));
-      }
-      function openFullRail() {
-        setChrome(c => ({
-          ...c,
-          rail: fullRailEntries(sn => {
-            if (sn === "T" || sn === "S") { showMarkRail(sn); return; }
-            commitLabel(sn);
-          }),
-        }));
-      }
-
-      if (ordered.length) {
-        const top = ordered.slice(0, 3);
-        curRef.current = store.setPin(top[0].label, top[0].x, top[0].y, false);
-        const items: BarItem[] = [{
-          text: top[0].label + " ✓",
-          onTap: () => { closeRail(); learnFrom(top[0].label); },
-          cls: "pri",
-        }];
-        for (const t of top.slice(1))
-          items.push({ text: t.label, onTap: () => commitLabel(t.label), keepOpen: true });
-        items.push({ text: "T", onTap: () => showMarkRail("T"), cls: "mkb", keepOpen: true });
-        items.push({ text: "S", onTap: () => showMarkRail("S"), cls: "mkb", keepOpen: true });
-        items.push({ text: "123 ▾", onTap: openFullRail, keepOpen: true });
-        items.push({ text: "cancel", onTap: () => { store.revert(curRef.current); curRef.current = null; closeRail(); }, cls: "del" });
-        setChrome(c => ({ ...c, bar: items, pad: { pinId: curRef.current!.id } }));
-      } else {
-        /* nothing recognizable under the tap: pick the label first,
-           the pin lands on the tap point */
-        setChrome(c => ({
-          ...c,
-          bar: null, pad: null,
-          rail: fullRailEntries(sn => {
-            if (sn === "T" || sn === "S") { showMarkRail(sn); return; }
-            curRef.current = store.setPin(sn, mx, my, false);
-            confirmBar(sn);
-          }),
-        }));
-      }
+      setChrome(c => ({ ...c, bar: null, pad: null, place: { x: mx, y: my } }));
     }
 
     /* ----- listeners, in the same order as always: viewer first,
@@ -457,6 +318,31 @@ export const MapView = forwardRef<MapHandle, Props>(function MapView(
     world.style.setProperty("--pin-scale", String(1 / v.s));
   };
 
+  /* "12" → room pin · "t"/"s" → marker linked to the nearest room pin
+     (or "t7" for room 7 explicitly) */
+  const placeTyped = (text: string, mx: number, my: number): boolean => {
+    const t = text.trim().toLowerCase();
+    let m = t.match(/^(\d{1,3})$/);
+    if (m) {
+      store.setPin(String(parseInt(m[1], 10)), mx, my, false);
+      return true;
+    }
+    m = t.match(/^([ts])\s*(\d{1,3})?$/);
+    if (m) {
+      let num = m[2] ? String(parseInt(m[2], 10)) : "";
+      if (!num) {
+        let bd = Infinity;
+        for (const p of store.pins) if (!p.mark) {
+          const d = Math.abs(p.x - mx) + Math.abs(p.y - my);
+          if (d < bd) { bd = d; num = p.label; }
+        }
+      }
+      store.setPin(m[1].toUpperCase() + num, mx, my, true);
+      return true;
+    }
+    return false;
+  };
+
   const padPin = chrome.pad ? store.byId(chrome.pad.pinId) : null;
 
   return (
@@ -489,7 +375,17 @@ export const MapView = forwardRef<MapHandle, Props>(function MapView(
         <button className="zfit" aria-label="fit map to screen" onClick={() => methods.current.refit()}>⛶</button>
       </div>
       {chrome.bar && <EditBar items={chrome.bar} onClose={() => setChrome(c => ({ ...c, bar: null, pad: null }))} />}
-      {chrome.rail && <Rail entries={chrome.rail} />}
+      {chrome.place && (
+        <PlaceInput
+          key={`${chrome.place.x},${chrome.place.y}`}
+          onCommit={text => {
+            const ok = placeTyped(text, chrome.place!.x, chrome.place!.y);
+            if (ok) setChrome(NO_CHROME);
+            return ok;
+          }}
+          onCancel={() => setChrome(NO_CHROME)}
+        />
+      )}
       {padPin && <NudgePad label={padPin.label} onNudge={(dx, dy) => store.nudge(padPin.id, dx, dy)} />}
     </div>
   );

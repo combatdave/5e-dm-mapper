@@ -81,6 +81,11 @@ main.home{gap:14px}
 .modopen:hover{border-color:var(--accent)}
 .modtitle{color:var(--bright);font-size:15px;font-weight:700}
 .modmeta{color:var(--dim);font-size:11.5px}
+.modrename{
+  width:44px;background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  color:var(--dim);font:600 14px system-ui;cursor:pointer;
+}
+.modrename:hover{border-color:var(--dim);color:var(--text)}
 .moddel{
   width:44px;background:var(--panel);border:1px solid var(--line);border-radius:12px;
   color:var(--red);font:600 14px system-ui;cursor:pointer;
@@ -206,17 +211,12 @@ body.haspad .edbar{left:auto;right:10px;transform:none}
 .edbar button.mkb{border-color:var(--gold);color:var(--gold)}
 .edbar button.del{border-color:var(--red);color:var(--red)}
 
-.edrail{
-  position:fixed;z-index:50;right:8px;top:50%;transform:translateY(-50%);
-  max-height:62vh;overflow-y:auto;touch-action:pan-y;-webkit-overflow-scrolling:touch;
-  overscroll-behavior:contain;display:flex;flex-direction:column;gap:4px;
-  background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px;
+.edtype input{
+  width:9.5em;background:var(--bg);color:var(--bright);border:1px solid var(--line);
+  border-radius:8px;padding:10px 12px;font:700 16px ui-monospace,monospace;
 }
-.edrail button{
-  background:var(--bg);color:var(--text);border:1px solid var(--line);
-  border-radius:8px;padding:9px 16px;font:700 15px system-ui;cursor:pointer;
-}
-.edrail button.mkb{border-color:var(--gold);color:var(--gold)}
+.edtype input:focus{outline:none;border-color:var(--green)}
+.edtype input.bad{border-color:var(--red);color:var(--red)}
 
 .edpad{
   position:fixed;z-index:50;left:10px;bottom:calc(14px + env(safe-area-inset-bottom));

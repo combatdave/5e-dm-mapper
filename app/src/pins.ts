@@ -18,17 +18,6 @@ export interface Pin {
   user: boolean;   // touched on this device (green in edit mode)
 }
 
-/** everything needed to undo one placement */
-export interface PlaceResult {
-  id: number;
-  created: boolean;
-  prev: [number, number] | null;
-  wasUser: boolean;
-  lbl: string;
-  x: number;
-  y: number;
-}
-
 type Pt = [number, number];
 
 export class PinStore {
@@ -91,8 +80,8 @@ export class PinStore {
     this.save();
   }
 
-  /* place (or move) a pin; returns enough to undo it */
-  setPin(lbl: string, mx: number, my: number, mark: boolean): PlaceResult {
+  /* place a pin — or move the same-label pin already within 12px */
+  setPin(lbl: string, mx: number, my: number, mark: boolean): void {
     mx = clamp(mx, 0, this.imgW);
     my = clamp(my, 0, this.imgH);
     let el: Pin | null = null, ed = 1e9;
@@ -100,36 +89,14 @@ export class PinStore {
       const d = Math.abs(p.x - mx) + Math.abs(p.y - my);
       if (d < ed) { ed = d; el = p; }
     }
-    const created = !el || ed > 12;
-    let prev: Pt | null = null, wasUser = false;
-    if (created) {
-      el = { id: this.nextId++, label: lbl, x: mx, y: my, mark, user: true };
-      this.pins.push(el);
+    if (!el || ed > 12) {
+      this.pins.push({ id: this.nextId++, label: lbl, x: mx, y: my, mark, user: true });
     } else {
-      prev = [el!.x, el!.y];
-      wasUser = el!.user;
-      if (wasUser) this.rmEntry(lbl, prev[0], prev[1]);
-      el!.x = mx; el!.y = my; el!.user = true;
+      if (el.user) this.rmEntry(lbl, el.x, el.y);
+      el.x = mx; el.y = my; el.user = true;
     }
     (this.userPins[lbl] ||= []).push([Math.round(mx), Math.round(my)]);
     this.save();
-    this.emit();
-    return { id: el!.id, created, prev, wasUser, lbl, x: mx, y: my };
-  }
-
-  revert(r: PlaceResult | null) {
-    if (!r) return;
-    const pin = this.byId(r.id);
-    if (!pin) return;
-    this.rmEntry(r.lbl, pin.x, pin.y);
-    if (r.created) {
-      this.pins = this.pins.filter(p => p.id !== r.id);
-    } else {
-      pin.x = r.prev![0]; pin.y = r.prev![1];
-      if (r.wasUser) (this.userPins[r.lbl] ||= []).push([Math.round(pin.x), Math.round(pin.y)]);
-      else pin.user = false;
-      this.save();
-    }
     this.emit();
   }
 

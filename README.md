@@ -16,25 +16,20 @@ downloading it onto a tablet works just as well.
    Ctrl/Cmd-S → *"Webpage, Single File"* (`.mhtml`; plain `.html` works
    too when its images are embedded or remote). Upload it on the
    library screen. The app parses the archive — no server involved —
-   and shows the images it found; tap the map(s), done. Modules persist
-   in IndexedDB (map image included), and the app reopens the last-used
-   module directly.
+   and shows the images it found: the "map-…" files D&D Beyond uses
+   come preselected, including the linked **"View Player Version"**
+   maps (those load from the CDN, so they need to be online). Pages
+   can be renamed from the library (✎), persist in IndexedDB (map
+   images included), and the app reopens the last-used one directly.
 
-2. **Annotate.** In **edit pins** mode, tap a printed room number on
-   the map. The built-in module matches glyphs sampled from its own
-   map; uploaded maps get segment-then-classify OCR — the digit-shaped
-   ink blobs under your tap are cut out (either polarity), normalized
-   to a canonical grid, and scored against digit templates rendered in
-   several fonts, plus every glyph this map has taught us: confirming
-   a placement (✓) samples the number's real pixels into a per-module
-   learned set. Cold guesses on dense old-school maps are hit-or-miss;
-   after a handful of confirmations the learned glyphs take over (on
-   the Sunless Citadel maps: ~1/8 cold → 6/8 after eight taps). Wrong
-   guess? Alternatives are on the bar, the full number rail is one tap
-   away, and `T`/`S` marker rails tag traps and secret doors to a
-   room. Fine-tune with the nudge d-pad (touch) or by dragging
-   (mouse). If nothing recognizable sits under the tap, the rail
-   simply opens to pick the label by hand.
+2. **Annotate.** In **edit pins** mode, tap the map and a focused
+   input opens: type the room number and press enter — the pin lands
+   on the tap point. Type `t` or `s` for a trap / secret-door marker:
+   it links itself to the nearest room pin (or type `t7` to target
+   room 7 explicitly). Every location link is always plain
+   `page#AreaAnchor` (older stored modules with doubled anchors are
+   repaired on load). Fine-tune with the nudge d-pad (tap a pin) or
+   by dragging (mouse); tapping a pin also offers delete.
 
 3. **Play.** Pan and pinch freely; pins keep constant screen size. Tap
    a room pin to open that area's text — the numbered headings of the
@@ -71,14 +66,12 @@ Layout:
 - `app/src/Home.tsx` — library, upload, map-image picker
 - `app/src/ModuleView.tsx` — one module: header, chips, map tabs
 - `app/src/MapView.tsx` — pan/zoom viewport, pins, the whole edit mode
-- `app/src/EditChrome.tsx` — action bar, rails, nudge pad, export panel
+- `app/src/EditChrome.tsx` — action bar, typed-input placement, nudge pad, export panel
 - `app/src/mhtml.ts` — MHTML / HTML save parsing
 - `app/src/modules.ts` — module model + IndexedDB persistence
-- `app/src/recognize.ts` — built-in map recognition (template matching)
-- `app/src/segment.ts` — upload OCR: segmentation, classification, learning
 - `app/src/pins.ts` — pin model + localStorage persistence
-- `app/src/mapdata.ts`, `app/src/glyphs.json`, `user_pins.json` — the
-  built-in Sunless Citadel module
+- `app/src/mapdata.ts`, `user_pins.json` — the built-in module
+  ("The Citadel - Fortress Level")
 
 ## Ideas / not done yet
 

@@ -10,7 +10,8 @@
 export interface PageImage {
   location: string;        // original URL / content-location (dedupe key)
   blob?: Blob;             // embedded image data
-  url?: string;            // remote src (plain-HTML saves)
+  url?: string;            // remote src (not embedded in the save)
+  player?: boolean;        // a "View Player Version" link
 }
 
 export interface PageHeading {
@@ -125,6 +126,18 @@ function parseHtmlText(html: string, sourceUrl: string, fallbackTitle: string): 
     } else if (/^https?:/.test(loc)) {
       images.push({ location: loc, url: loc });
     }
+  });
+  /* links to images too — D&D Beyond's "View Player Version" maps are
+     plain <a href> links, never loaded into the page */
+  doc.querySelectorAll("a[href]").forEach(a => {
+    const href = a.getAttribute("href") || "";
+    if (!/\.(jpe?g|png|webp|gif)(\?|#|$)/i.test(href)) return;
+    let loc = href;
+    try { loc = url ? new URL(href, url).href : href; } catch { /* keep raw */ }
+    if (seen.has(loc) || !/^https?:/.test(loc)) return;
+    seen.add(loc);
+    const player = /player/i.test((a.textContent || "") + " " + loc);
+    images.push({ location: loc, url: loc, player });
   });
 
   const headings: PageHeading[] = [];

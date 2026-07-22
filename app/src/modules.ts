@@ -6,15 +6,7 @@
  * orphaned).
  */
 import { BASE_PINS, EXPECTED, HREFS, MAP, MODULE_URL, NAMES } from "./mapdata";
-import glyphData from "./glyphs.json";
 import type { PageHeading, PageImage } from "./mhtml";
-import type { LearnedDigits } from "./segment";
-
-export interface GlyphData {
-  cells: Record<string, number[][]>;
-  p: { pitch: number; cw: number; chh: number; rx: number; ry: number; comp: number; pen: number };
-  combos?: number;   // glyph variants to try per digit (default 2)
-}
 
 export interface MapDef {
   title: string;
@@ -22,6 +14,7 @@ export interface MapDef {
   height: number;
   url?: string;      // bundled data URI or remote URL
   blob?: Blob;       // embedded image from an upload
+  player?: boolean;  // clean player-facing version (no numbers/secrets)
 }
 
 export interface ModuleDef {
@@ -33,8 +26,6 @@ export interface ModuleDef {
   expected: string[];               // labels offered on the pin rail
   maps: MapDef[];
   builtin?: boolean;
-  glyphs?: GlyphData;               // glyphs sampled from the map itself (built-in)
-  learnedDigits?: LearnedDigits;    // canonical crops from confirmed placements
   basePins?: Record<string, number[][]>;
 }
 
@@ -42,14 +33,13 @@ export const BUILTIN: ModuleDef = {
   /* id kept identical to the historical document.title so existing
      localStorage pins keep working */
   id: "The Sunless Citadel — map launcher",
-  title: "The Sunless Citadel",
+  title: "The Citadel - Fortress Level",
   sourceUrl: MODULE_URL,
   names: NAMES,
   hrefs: HREFS,
   expected: EXPECTED,
   maps: [{ title: MAP.title, width: MAP.width, height: MAP.height, url: MAP.src }],
   builtin: true,
-  glyphs: glyphData as GlyphData,
   basePins: BASE_PINS,
 };
 
@@ -85,17 +75,45 @@ export function buildModule(
     hrefs,
     expected: expected.length ? expected : GENERIC_EXPECTED,
     maps: picked.map((p, i) => ({
-      title: picked.length > 1 ? `Map ${i + 1}` : "Map",
+      title: (picked.length > 1 ? `Map ${i + 1}` : "Map") + (p.image.player ? " · player" : ""),
       width: p.width,
       height: p.height,
       url: p.image.blob ? undefined : p.image.url,
       blob: p.image.blob,
+      player: p.image.player || undefined,
     })),
   };
 }
 
 export const pinStoreKey = (moduleId: string, mapIndex: number) =>
   "edpins:" + moduleId + (mapIndex ? ":" + mapIndex : "");
+
+/* location links must always be base#AreaAnchor — saves made while a
+   page was scrolled used to store base#ScrollAnchor#AreaAnchor */
+export function cleanHref(href: string): string {
+  const i = href.indexOf("#"), j = href.lastIndexOf("#");
+  return i < 0 || i === j ? href : href.slice(0, i) + "#" + href.slice(j + 1);
+}
+
+function sanitizeModule(m: ModuleDef): ModuleDef {
+  m.sourceUrl = (m.sourceUrl || "").split("#")[0];
+  for (const k of Object.keys(m.hrefs || {})) m.hrefs[k] = cleanHref(m.hrefs[k]);
+  return m;
+}
+
+/* ---------- user-chosen page titles (any module, built-in too) ------- */
+
+const TITLES_KEY = "dm-mapper:titles";
+export function titleOverrides(): Record<string, string> {
+  try { return JSON.parse(localStorage.getItem(TITLES_KEY) || "{}"); } catch { return {}; }
+}
+export function setTitleOverride(id: string, title: string) {
+  try {
+    const t = titleOverrides();
+    t[id] = title;
+    localStorage.setItem(TITLES_KEY, JSON.stringify(t));
+  } catch { /* private mode */ }
+}
 
 /* ---------- persistence (IndexedDB, in-memory fallback) -------------- */
 
@@ -125,7 +143,7 @@ export async function listSavedModules(): Promise<ModuleDef[]> {
   return new Promise(resolve => {
     try {
       const req = db.transaction(STORE).objectStore(STORE).getAll();
-      req.onsuccess = () => resolve((req.result as ModuleDef[]) || []);
+      req.onsuccess = () => resolve(((req.result as ModuleDef[]) || []).map(sanitizeModule));
       req.onerror = () => resolve([...memory.values()]);
     } catch {
       resolve([...memory.values()]);

@@ -3,7 +3,7 @@
  * and the export panel. Pointer events are stopped at each panel so
  * taps never fall through to the map.
  */
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 const stop = (e: { stopPropagation(): void }) => e.stopPropagation();
@@ -32,24 +32,37 @@ export function EditBar({ items, onClose }: { items: BarItem[]; onClose: () => v
   );
 }
 
-export interface RailEntry {
-  text: string;
-  cls?: string;
-  onTap: () => void;
-}
-
-export function Rail({ entries }: { entries: RailEntry[] }) {
+/* tap placement: an autofocused input — type "12" for a room pin,
+   "t" / "s" for a trap / secret-door marker linked to the nearest
+   room pin (or "t7" to target room 7 explicitly), Enter to place */
+export function PlaceInput({ onCommit, onCancel }: {
+  onCommit: (text: string) => boolean;   // false = not a valid label
+  onCancel: () => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  const [bad, setBad] = useState(false);
+  useEffect(() => { ref.current?.focus(); }, []);
+  const commit = () => {
+    if (!onCommit(ref.current?.value ?? "")) { setBad(true); ref.current?.select(); }
+  };
   return createPortal(
-    <div className="edrail" onPointerDown={stop} onPointerUp={stop}>
-      {entries.map((en, i) => (
-        <button
-          key={i}
-          className={en.cls || undefined}
-          onPointerUp={e => { e.stopPropagation(); en.onTap(); }}
-        >
-          {en.text}
-        </button>
-      ))}
+    <div className="edbar edtype" onPointerDown={stop} onPointerUp={stop}>
+      <input
+        ref={ref}
+        className={bad ? "bad" : undefined}
+        autoCapitalize="off" autoCorrect="off" spellCheck={false}
+        placeholder="room # · t · s"
+        aria-label="room number, or t / s for a marker"
+        onChange={() => setBad(false)}
+        onKeyDown={e => {
+          if (e.key === "Enter") commit();
+          else if (e.key === "Escape") onCancel();
+        }}
+      />
+      <button className="pri" aria-label="place pin"
+        onPointerUp={e => { e.stopPropagation(); commit(); }}>✓</button>
+      <button className="del" aria-label="cancel"
+        onPointerUp={e => { e.stopPropagation(); onCancel(); }}>✖</button>
     </div>,
     document.body,
   );

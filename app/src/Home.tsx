@@ -21,11 +21,12 @@ interface PickerState {
   selected: Set<number>;
 }
 
-export function Home({ modules, onOpen, onCreate, onDelete }: {
+export function Home({ modules, onOpen, onCreate, onDelete, onRename }: {
   modules: ModuleDef[];
   onOpen: (id: string) => void;
   onCreate: (m: ModuleDef) => void;
   onDelete: (id: string) => void;
+  onRename: (id: string, title: string) => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -93,6 +94,13 @@ export function Home({ modules, onOpen, onCreate, onDelete }: {
                   {m.builtin ? " · built-in" : ""}
                 </span>
               </button>
+              <button className="modrename" aria-label={"rename " + m.title}
+                onClick={() => {
+                  const t = prompt("Rename this page:", m.title);
+                  if (t && t.trim()) onRename(m.id, t.trim());
+                }}>
+                ✎
+              </button>
               {!m.builtin && (
                 <button className="moddel" aria-label={"delete " + m.title}
                   onClick={() => { if (confirm(`Remove “${m.title}” and its saved maps? Pins in localStorage are kept.`)) onDelete(m.id); }}>
@@ -132,7 +140,7 @@ export function Home({ modules, onOpen, onCreate, onDelete }: {
                     return { ...p, selected: sel };
                   })}>
                   <img src={c.src} alt="" loading="lazy" />
-                  <span>{c.width}×{c.height}</span>
+                  <span>{c.width}×{c.height}{c.image.player ? " · player" : ""}</span>
                 </button>
               ))}
             </div>

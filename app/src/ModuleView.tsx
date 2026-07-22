@@ -4,7 +4,7 @@
  */
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { ModuleDef } from "./modules";
-import { pinStoreKey, saveModule } from "./modules";
+import { pinStoreKey } from "./modules";
 import { openArea } from "./helpers";
 import { PinStore } from "./pins";
 import { MapView } from "./MapView";
@@ -105,7 +105,7 @@ export function ModuleView({ module, onBack }: { module: ModuleDef; onBack: () =
           chip: find the room on the map · pin: open the area text · pinch / scroll to zoom, drag to pan
         </p>
         <p className="sub" data-edit="">
-          editing — tap an empty spot to add a pin (it reads the room number under your finger) · tap a pin to move or delete it
+          editing — tap the map, type the room number (t / s = trap / secret-door marker on the nearest room) · tap a pin to move or delete it
         </p>
       </header>
 
@@ -150,10 +150,6 @@ export function ModuleView({ module, onBack }: { module: ModuleDef; onBack: () =
                 imgSrc={imgSrcs[i]}
                 store={stores[i]}
                 editing={editing}
-                onLearned={module.builtin ? undefined : learned => {
-                  module.learnedDigits = learned;   // matcher improves as placements are confirmed
-                  void saveModule(module);
-                }}
               />
             </div>
           ))}

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { ModuleDef } from "./modules";
 import {
   BUILTIN, deleteModule, getLastModuleId, listSavedModules, saveModule,
-  setLastModuleId,
+  setLastModuleId, setTitleOverride, titleOverrides,
 } from "./modules";
 import { ModuleView } from "./ModuleView";
 import { Home } from "./Home";
@@ -16,6 +16,8 @@ export default function App() {
     void (async () => {
       const saved = await listSavedModules();
       const all = [BUILTIN, ...saved.filter(m => m.id !== BUILTIN.id)];
+      const titles = titleOverrides();
+      for (const m of all) if (titles[m.id]) m.title = titles[m.id];
       setModules(all);
       /* come straight back to the last-used module — at the table you
          want the map, not a menu */
@@ -50,11 +52,21 @@ export default function App() {
     setModules(ms => ms.filter(x => x.id !== id));
   };
 
+  const rename = (id: string, title: string) => {
+    setTitleOverride(id, title);
+    setModules(ms => ms.map(m => {
+      if (m.id !== id) return m;
+      m.title = title;                      // keep the same object: open views hold it
+      if (!m.builtin) void saveModule(m);
+      return m;
+    }));
+  };
+
   if (!ready) return null;
 
   const current = openId ? modules.find(m => m.id === openId) : undefined;
   if (current) {
     return <ModuleView key={current.id} module={current} onBack={() => setOpenId(null)} />;
   }
-  return <Home modules={modules} onOpen={open} onCreate={create} onDelete={remove} />;
+  return <Home modules={modules} onOpen={open} onCreate={create} onDelete={remove} onRename={rename} />;
 }
