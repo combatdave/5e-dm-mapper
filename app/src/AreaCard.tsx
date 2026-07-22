@@ -4,7 +4,6 @@
  * might face soon without opening anything.
  */
 import type { AreaDigest } from "./mhtml";
-import { creatureEmoji } from "./helpers";
 
 export function AreaCard({ num, name, digest, href, left, top, above, onOpenText, onOpenCreature, onClose }: {
   num: string;
@@ -36,7 +35,7 @@ export function AreaCard({ num, name, digest, href, left, top, above, onOpenText
           {digest.creatures.map(c => (
             <button key={c.href + c.name} className="ac-chip ac-creature"
               onClick={() => onOpenCreature(c.href)}>
-              {creatureEmoji(c.name)} {c.count ? `${c.count}× ` : ""}{c.name}
+              {c.count ? `${c.count}× ` : ""}{c.name}
             </button>
           ))}
         </div>
@@ -46,7 +45,8 @@ export function AreaCard({ num, name, digest, href, left, top, above, onOpenText
           {digest.dcs.map(dc => <span key={dc} className="ac-chip ac-dc">{dc}</span>)}
         </div>
       ) : null}
-      {digest?.treasure && <p className="ac-treasure">{digest.treasure}</p>}
+      {digest?.traps && <p className="ac-hazard"><b>trap</b>{digest.traps.replace(/^traps?[.:]\s*/i, "")}</p>}
+      {digest?.secrets && <p className="ac-hazard"><b>secret</b>{digest.secrets.replace(/^secret( doors?| passages?)?[.:]?\s*/i, "")}</p>}
       {!digest && <p className="ac-none">no saved text for this area{href ? " — tap the pin to open it" : ""}</p>}
     </div>
   );

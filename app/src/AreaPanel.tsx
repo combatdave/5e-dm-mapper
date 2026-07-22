@@ -5,7 +5,7 @@
  * to stat blocks.
  */
 import type { AreaDigest } from "./mhtml";
-import { creatureEmoji, openArea } from "./helpers";
+import { openArea } from "./helpers";
 
 export function AreaPanel({ num, name, digest, href, onClose }: {
   num: string;
@@ -38,7 +38,7 @@ export function AreaPanel({ num, name, digest, href, onClose }: {
           {digest.creatures.map(c => (
             <button key={c.href + c.name} className="ac-chip ac-creature"
               onClick={() => openArea(c.href)}>
-              {creatureEmoji(c.name)} {c.count ? `${c.count}× ` : ""}{c.name}
+              {c.count ? `${c.count}× ` : ""}{c.name}
             </button>
           ))}
         </div>

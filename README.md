@@ -41,11 +41,12 @@ downloading it onto a tablet works just as well.
 
 3. **Play.** The app is an interactive adventure book with the map as
    its index. Pan and pinch freely; pins keep constant screen size,
-   and rooms with creatures carry a small icon (🐀 💀 🌿 …).
+   and rooms with creatures carry a small red dot.
 
    **Hover a pin** (long-press on touch) for the at-a-glance card:
-   read-aloud opener, creatures with counts, DCs, treasure — scouting
-   what the party might face soon.
+   read-aloud opener, creatures with counts, DCs, and any "Trap." /
+   "Secret Door." lead-in paragraphs from the text — hovering a T/S
+   marker shows its room's hazards directly.
 
    **Click a pin** (or a pinless chip) and the area's own section
    from the saved page opens in a book-styled reader panel — no more

@@ -14,7 +14,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import type { MapDef, ModuleDef } from "./modules";
-import { clamp, creatureEmoji, MAX_ZOOM, MIN_ZOOM, openArea, pinTitle } from "./helpers";
+import { clamp, MAX_ZOOM, MIN_ZOOM, openArea, pinTitle } from "./helpers";
 import { PinStore } from "./pins";
 import type { Pin } from "./pins";
 import { EditBar, NudgePad, PlaceInput } from "./EditChrome";
@@ -447,9 +447,7 @@ export const MapView = forwardRef<MapHandle, Props>(function MapView(
               onDragStart={e => e.preventDefault()}
             >
               {p.label}
-              {creatures?.length ? (
-                <span className="pinbadge" aria-hidden="true">{creatureEmoji(creatures[0].name)}</span>
-              ) : null}
+              {creatures?.length ? <span className="pinbadge" aria-hidden="true" /> : null}
             </a>
             );
           })}

@@ -281,8 +281,12 @@ body.haspad .edbar{left:auto;right:10px;transform:none}
 .ac-creature:hover{background:var(--red);color:var(--bg)}
 .ac-dc{border-color:#5a91f5;color:#9dbdf8;cursor:default}
 .ac-mark{border-color:var(--gold);color:var(--gold)}
-.ac-treasure{margin:0;color:var(--gold);
-  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ac-hazard{margin:0;color:var(--text);font-size:12px;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.ac-hazard b{
+  color:var(--gold);text-transform:uppercase;font-size:9.5px;letter-spacing:1px;
+  border:1px solid var(--gold);border-radius:6px;padding:1px 5px;margin-right:6px;
+}
 .ac-none{margin:0;color:var(--dim)}
 .ac-nearby{display:flex;flex-wrap:wrap;gap:4px;align-items:center;
   border-top:1px solid var(--line);padding-top:7px}
@@ -332,10 +336,10 @@ body.haspad .edbar{left:auto;right:10px;transform:none}
 .ap-body a{color:#a51c1c;text-decoration:underline;cursor:pointer}
 .ap-body a:hover{color:#d32424}
 
-/* creature badge on room pins */
+/* creatures-present dot on room pins */
 .pinbadge{
-  position:absolute;top:-9px;right:-10px;font-size:10px;line-height:1;
-  filter:drop-shadow(0 1px 1px #000c);pointer-events:none;
+  position:absolute;top:-3px;right:-4px;width:7px;height:7px;border-radius:50%;
+  background:var(--red);border:1px solid #14181d;pointer-events:none;
 }
 
 /* keyboard focus */

@@ -25,7 +25,8 @@ export interface AreaDigest {
   readAloud?: string;                    // boxed text, trimmed
   creatures: { name: string; href: string; count?: number }[];
   dcs: string[];                         // "DC 15 Wisdom (Perception)"
-  treasure?: string;
+  traps?: string;                        // "Trap." lead-in paragraphs
+  secrets?: string;                      // "Secret Door." lead-in paragraphs
   text?: string;                         // plain text (cards + search)
   html?: string;                         // sanitized section markup (reader panel)
 }
@@ -199,16 +200,20 @@ function extractAreas(doc: Document, baseUrl: string): Record<string, AreaDigest
     }
     const digest: AreaDigest = { creatures: [], dcs: [] };
     const textParts: string[] = [];
+    const traps: string[] = [], secrets: string[] = [];
     for (const b of blocks) {
       const txt = (b.textContent || "").trim().replace(/\s+/g, " ");
       if (!txt) continue;
       const cls = (b.className || "").toString();
-      if (!digest.readAloud && (b.tagName === "BLOCKQUOTE" || /read-?aloud/i.test(cls)))
+      if (!digest.readAloud && (b.tagName === "BLOCKQUOTE" || /read-?aloud/i.test(cls))) {
         digest.readAloud = txt.slice(0, 400);
-      else if (!digest.treasure && /^treasure\b/i.test(txt))
-        digest.treasure = txt.slice(0, 300);
-      else
-        textParts.push(txt);
+        continue;
+      }
+      /* WotC formats hazards as bold lead-in paragraphs: "Trap. …",
+         "Secret Door. …" — reliable to pick out of D&D Beyond text */
+      if (/^traps?[.:]/i.test(txt)) traps.push(txt);
+      else if (/^secret\b/i.test(txt)) secrets.push(txt);
+      textParts.push(txt);
       /* creatures: monster links, with a count just before when present */
       b.querySelectorAll('a[href*="/monsters/"]').forEach(a => {
         const name = (a.textContent || "").trim();
@@ -227,9 +232,11 @@ function extractAreas(doc: Document, baseUrl: string): Record<string, AreaDigest
       const dc = m[0].replace(/\s+/g, " ").trim();
       if (digest.dcs.length < 6 && !digest.dcs.includes(dc)) digest.dcs.push(dc);
     }
+    if (traps.length) digest.traps = traps.join(" • ").slice(0, 400);
+    if (secrets.length) digest.secrets = secrets.join(" • ").slice(0, 400);
     digest.text = flat.slice(0, 2000) || undefined;
     digest.html = sanitizeArea(blocks, baseUrl) || undefined;
-    if (digest.html || digest.readAloud || digest.creatures.length || digest.dcs.length || digest.treasure || digest.text)
+    if (digest.html || digest.readAloud || digest.creatures.length || digest.dcs.length || digest.text)
       areas[num] = digest;
   }
   return areas;
