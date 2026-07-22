@@ -12,6 +12,7 @@ import { MapView } from "./MapView";
 import type { MapHandle } from "./MapView";
 import { AreaPanel } from "./AreaPanel";
 import { RoomFinder } from "./RoomFinder";
+import { ConfirmDialog } from "./Dialogs";
 
 export function ModuleView({ module, onBack, onUpdate }: {
   module: ModuleDef;
@@ -20,6 +21,7 @@ export function ModuleView({ module, onBack, onUpdate }: {
 }) {
   const [editing, setEditing] = useState(false);
   const [activeMap, setActiveMap] = useState(0);
+  const [confirmClear, setConfirmClear] = useState(false);
   const [panelNum, setPanelNum] = useState<string | null>(null);
   const mapRefs = useRef<(MapHandle | null)[]>([]);
 
@@ -83,7 +85,6 @@ export function ModuleView({ module, onBack, onUpdate }: {
   };
 
   const clearPins = () => {
-    if (!confirm("Delete all pins you placed on this device?")) return;
     stores.forEach(s => s.clearStored());
     location.reload();
   };
@@ -117,7 +118,9 @@ export function ModuleView({ module, onBack, onUpdate }: {
               />
             )}
             {editing && (
-              <button id="clearBtn" className="btn danger" onClick={clearPins}>✕ clear pins</button>
+              <button id="clearBtn" className="btn danger" onClick={() => setConfirmClear(true)}>
+                ✕ clear pins
+              </button>
             )}
             <button id="editBtn" className={"btn" + (editing ? " on" : "")}
               onClick={() => setEditing(on => !on)}>
@@ -163,6 +166,17 @@ export function ModuleView({ module, onBack, onUpdate }: {
           ))}
         </section>
       </main>
+
+      {confirmClear && (
+        <ConfirmDialog
+          title="Clear your pins?"
+          body="Deletes every pin you placed on this device for this page."
+          confirmLabel="clear pins"
+          danger
+          onConfirm={clearPins}
+          onCancel={() => setConfirmClear(false)}
+        />
+      )}
     </>
   );
 }

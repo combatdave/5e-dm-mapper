@@ -378,5 +378,25 @@ body.haspad .edbar{left:auto;right:10px;transform:none}
 .ap-body a{color:#a51c1c;text-decoration:underline;cursor:pointer}
 .ap-body a:hover{color:#d32424}
 
+/* ============================================================
+   in-app dialogs (native confirm/prompt are blocked in sandboxed
+   iframes, so these carry delete / rename / clear flows)
+   ============================================================ */
+.overlay{position:fixed;inset:0;z-index:80;background:#100d0acc;display:flex;
+  align-items:center;justify-content:center;padding:16px}
+.dialog{
+  width:min(92vw,380px);display:flex;flex-direction:column;gap:10px;
+  background:var(--panel);border:1px solid var(--line2);border-radius:14px;padding:16px;
+  box-shadow:0 16px 44px #000c;
+}
+.dialog b{color:var(--bright);font:650 15px var(--serif)}
+.dialog p{margin:0;color:var(--text);font-size:13px}
+.dialog input{
+  background:var(--bg);color:var(--bright);border:1px solid var(--line);border-radius:9px;
+  padding:9px 12px;font:500 14px var(--font);
+}
+.dialog input:focus{outline:none;border-color:var(--brass)}
+.dlgrow{display:flex;gap:8px;justify-content:flex-end;margin-top:2px}
+
 /* keyboard focus */
 button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--brass);outline-offset:2px}

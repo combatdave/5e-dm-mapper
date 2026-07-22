@@ -9,6 +9,9 @@ import {
   parseBundleFile, writeImportedPins,
 } from "./modules";
 import { SaveImporter } from "./SaveImport";
+import { ConfirmDialog, PromptDialog } from "./Dialogs";
+
+type Bundle = ReturnType<typeof parseBundleFile>;
 
 function downloadJson(name: string, json: string) {
   const a = document.createElement("a");
@@ -28,19 +31,24 @@ export function Home({ modules, onOpen, onCreate, onDelete, onRename }: {
 }) {
   const pageFileRef = useRef<HTMLInputElement>(null);
   const [pageError, setPageError] = useState("");
+  const [deleting, setDeleting] = useState<ModuleDef | null>(null);
+  const [renaming, setRenaming] = useState<ModuleDef | null>(null);
+  const [clash, setClash] = useState<{ pages: Bundle; titles: string[] } | null>(null);
+
+  function importPages(pages: Bundle) {
+    for (const { module, pins } of pages) {
+      writeImportedPins(module.id, pins);
+      onCreate(module);
+    }
+  }
 
   async function handlePageFile(file: File) {
     setPageError("");
     try {
       const pages = parseBundleFile(await file.text());
-      const clashes = pages.filter(p => modules.some(m => m.id === p.module.id)).map(p => p.module.title);
-      if (clashes.length &&
-          !confirm(`Replace ${clashes.length} existing page${clashes.length === 1 ? "" : "s"} (pins included)?\n${clashes.join("\n")}`))
-        return;
-      for (const { module, pins } of pages) {
-        writeImportedPins(module.id, pins);
-        onCreate(module);
-      }
+      const titles = pages.filter(p => modules.some(m => m.id === p.module.id)).map(p => p.module.title);
+      if (titles.length) { setClash({ pages, titles }); return; }
+      importPages(pages);
     } catch (e) {
       setPageError(e instanceof Error ? e.message : String(e));
     }
@@ -79,15 +87,12 @@ export function Home({ modules, onOpen, onCreate, onDelete, onRename }: {
                 ⤓
               </button>
               <button className="modrename" aria-label={"rename " + m.title} title="rename"
-                onClick={() => {
-                  const t = prompt("Rename this page:", m.title);
-                  if (t && t.trim()) onRename(m.id, t.trim());
-                }}>
+                onClick={() => setRenaming(m)}>
                 ✎
               </button>
               {!m.builtin && (
                 <button className="moddel" aria-label={"delete " + m.title} title="delete"
-                  onClick={() => { if (confirm(`Remove “${m.title}” and its saved maps? Pins in localStorage are kept.`)) onDelete(m.id); }}>
+                  onClick={() => setDeleting(m)}>
                   ✕
                 </button>
               )}
@@ -116,6 +121,38 @@ export function Home({ modules, onOpen, onCreate, onDelete, onRename }: {
           {pageError && <p className="uperror">{pageError}</p>}
         </div>
       </main>
+
+      {deleting && (
+        <ConfirmDialog
+          title={`Remove “${deleting.title}”?`}
+          body="Its saved maps are removed too. Pins stay in this device's storage."
+          confirmLabel="remove page"
+          danger
+          onConfirm={() => { onDelete(deleting.id); setDeleting(null); }}
+          onCancel={() => setDeleting(null)}
+        />
+      )}
+      {renaming && (
+        <PromptDialog
+          title="Rename this page"
+          initial={renaming.title}
+          confirmLabel="rename"
+          onSubmit={t => { onRename(renaming.id, t); setRenaming(null); }}
+          onCancel={() => setRenaming(null)}
+        />
+      )}
+      {clash && (
+        <ConfirmDialog
+          title={clash.titles.length === 1
+            ? `Replace “${clash.titles[0]}”?`
+            : `Replace ${clash.titles.length} existing pages?`}
+          body={"Already in your library (pins included): " + clash.titles.join(", ")}
+          confirmLabel="replace"
+          danger
+          onConfirm={() => { importPages(clash.pages); setClash(null); }}
+          onCancel={() => setClash(null)}
+        />
+      )}
     </>
   );
 }
