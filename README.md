@@ -12,10 +12,12 @@ downloading it onto a tablet works just as well.
 
 ## How it works
 
-1. **Upload.** On D&D Beyond, save the adventure page with
-   Ctrl/Cmd-S → *"Webpage, Single File"* (`.mhtml`; plain `.html` works
-   too when its images are embedded or remote). Upload it on the
-   library screen. The app parses the archive — no server involved —
+1. **Add an adventure.** The library's **＋ add new adventure** button
+   opens a guided dialog that walks through it: open the adventure
+   page on D&D Beyond (logged in), save it with Ctrl/Cmd-S →
+   *"Webpage, Single File"* (`.mhtml`; plain `.html` works too when
+   its images are embedded or remote), then drop the saved file on
+   the dialog's dropzone (or click it to browse). The app parses the archive — no server involved —
    and shows the images it found: the "map-…" files D&D Beyond uses
    come preselected, including the linked **"View Player Version"**
    maps (those load from the CDN, so they need to be online). Pages

@@ -398,6 +398,20 @@ body.haspad .edbar{left:auto;right:10px;transform:none}
 }
 .dialog input:focus{outline:none;border-color:var(--brass)}
 .dialog.wide{width:min(92vw,460px)}
+.dialog.guide{width:min(92vw,440px)}
+.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:7px;font-size:13px}
+.steps b{color:var(--bright)}
+kbd{
+  background:var(--bg);border:1px solid var(--line2);border-bottom-width:2px;border-radius:5px;
+  padding:0 5px;font:600 11px var(--mono);color:var(--bright);
+}
+.dropzone{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  border:2px dashed var(--line2);border-radius:12px;padding:26px 14px;cursor:pointer;
+  background:var(--bg);color:var(--text);font:600 13.5px var(--font);text-align:center;
+}
+.dropzone span{color:var(--dim);font:500 12px var(--font)}
+.dropzone:hover,.dropzone.over{border-color:var(--brass);color:var(--bright)}
 .dialog textarea{
   height:34vh;background:var(--well);color:var(--text);border:1px solid var(--line);
   border-radius:9px;padding:8px;font:12px var(--mono);resize:none;

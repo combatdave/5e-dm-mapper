@@ -99,11 +99,10 @@ export function Home({ modules, onOpen, onCreate, onDelete, onRename }: {
         <div className="upload">
           <SaveImporter
             mode="create"
-            buttonLabel="＋ import from D&D Beyond"
+            buttonLabel="＋ add new adventure"
             buttonClass="btn big pri"
             onPicked={(page, picked) => onCreate(buildModule(page, picked))}
           />
-          <p className="uphint">save the adventure page first: Ctrl/Cmd-S → “Webpage, Single File”</p>
           <div className="uprow">
             <button className="btn" onClick={() => pageFileRef.current?.click()}>
               ⇞ import pages

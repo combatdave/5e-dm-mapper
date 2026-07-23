@@ -1,8 +1,9 @@
-/* Shared save-upload flow: button → parse the .mhtml/.html → image
- * picker. Home uses it to create a new page; an open page uses it to
- * merge more out of the same save (second map, the area text).
+/* Shared save-upload flow: button → guided dialog (how to save the
+ * page on D&D Beyond, plus a dropzone) → parse the .mhtml/.html →
+ * image picker. Home uses it to create a new page; an open page uses
+ * it to merge more out of the same save (second map, the area text).
  */
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { parseSavedPage } from "./mhtml";
 import type { PageImage, ParsedPage } from "./mhtml";
 
@@ -35,6 +36,15 @@ export function SaveImporter({ buttonLabel, buttonClass, mode, onPicked }: {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [picker, setPicker] = useState<PickerState | null>(null);
+  const [guide, setGuide] = useState(false);   // the instruction dialog
+  const [drag, setDrag] = useState(false);
+
+  useEffect(() => {
+    if (!guide) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); setGuide(false); } };
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, [guide]);
 
   async function handleFile(file: File) {
     setBusy(true); setError("");
@@ -53,6 +63,7 @@ export function SaveImporter({ buttonLabel, buttonClass, mode, onPicked }: {
       const mapish = candidates.findIndex(c => c.width / c.height <= 1.6);
       const selected = byName.length ? byName : (mapish >= 0 ? [mapish] : []);
       setPicker({ page, candidates, selected: new Set(selected) });
+      setGuide(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -75,13 +86,59 @@ export function SaveImporter({ buttonLabel, buttonClass, mode, onPicked }: {
 
   return (
     <>
-      <button className={buttonClass || "btn"} disabled={busy} onClick={() => fileRef.current?.click()}>
+      <button className={buttonClass || "btn"} disabled={busy}
+        onClick={() => { setError(""); setGuide(true); }}>
         {busy ? "reading…" : buttonLabel}
       </button>
       <input ref={fileRef} type="file" accept=".mhtml,.mht,.html,.htm,message/rfc822,text/html"
         hidden
         onChange={e => { const f = e.target.files?.[0]; if (f) void handleFile(f); e.target.value = ""; }} />
-      {error && <p className="uperror">{error}</p>}
+      {!guide && error && <p className="uperror">{error}</p>}
+      {guide && (
+        <div className="overlay" onClick={() => setGuide(false)}>
+          <div className="dialog guide" role="dialog"
+            aria-label={mode === "create" ? "Add an adventure" : "Add more from your save"}
+            onClick={e => e.stopPropagation()}>
+            <b>{mode === "create" ? "Add an adventure" : "Add more from your save"}</b>
+            {mode === "create" ? (
+              <ol className="steps">
+                <li>On <b>dndbeyond.com</b>, open the adventure page you want to run —
+                  logged in, so everything you own is on it.</li>
+                <li>Save that page: <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>S</kbd>, and pick
+                  “<b>Webpage, Single File</b>” as the type.</li>
+                <li>Drop the saved file below, then choose which of its images are the maps.</li>
+              </ol>
+            ) : (
+              <p>
+                Upload the page you saved from D&D Beyond again — extra maps join this
+                page as tabs, and the adventure text attaches to your pins for the
+                reader. Pick no maps to import just the text.
+              </p>
+            )}
+            <div
+              className={"dropzone" + (drag ? " over" : "")}
+              role="button" tabIndex={0}
+              onClick={() => fileRef.current?.click()}
+              onKeyDown={e => { if (e.key === "Enter" || e.key === " ") fileRef.current?.click(); }}
+              onDragOver={e => { e.preventDefault(); setDrag(true); }}
+              onDragLeave={() => setDrag(false)}
+              onDrop={e => {
+                e.preventDefault(); setDrag(false);
+                const f = e.dataTransfer.files?.[0];
+                if (f) void handleFile(f);
+              }}
+            >
+              {busy
+                ? "reading…"
+                : <>drop the saved page here<span>or click to browse — .mhtml / .html</span></>}
+            </div>
+            {error && <p className="uperror">{error}</p>}
+            <div className="dlgrow">
+              <button className="btn" onClick={() => setGuide(false)}>cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
       {picker && (
         <div className="picker">
           <div className="pickerbox">
