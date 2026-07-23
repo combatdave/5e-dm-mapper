@@ -115,9 +115,11 @@ function parseMhtml(raw: string): ParsedPage {
   return { ...page, sourceUrl, images };
 }
 
-/* ---------- plain HTML ----------------------------------------------- */
+/* ---------- plain HTML -----------------------------------------------
+   also the entry point for the bookmarklet, which sends the live DOM
+   of a D&D Beyond page the user is reading (already logged in) */
 
-function parseHtmlText(html: string, sourceUrl: string, fallbackTitle: string): ParsedPage {
+export function parseHtmlText(html: string, sourceUrl: string, fallbackTitle: string): ParsedPage {
   const doc = new DOMParser().parseFromString(html, "text/html");
   const canonical =
     doc.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.getAttribute("href") ||

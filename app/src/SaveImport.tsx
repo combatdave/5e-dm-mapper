@@ -2,7 +2,7 @@
  * picker. Home uses it to create a new page; an open page uses it to
  * merge more out of the same save (second map, the area text).
  */
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { parseSavedPage } from "./mhtml";
 import type { PageImage, ParsedPage } from "./mhtml";
 
@@ -25,40 +25,58 @@ interface PickerState {
   selected: Set<number>;
 }
 
-export function SaveImporter({ buttonLabel, buttonClass, mode, onPicked }: {
+export function SaveImporter({ buttonLabel, buttonClass, mode, onPicked, incoming, onIncomingHandled }: {
   buttonLabel: string;
   buttonClass?: string;
   mode: "create" | "merge";     // merge allows zero maps (text-only import)
   onPicked: (page: ParsedPage, picked: PickedImage[]) => void;
+  /* a page that arrived already parsed (the bookmarklet) — opens the
+     same picker as an uploaded file */
+  incoming?: ParsedPage | null;
+  onIncomingHandled?: () => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [picker, setPicker] = useState<PickerState | null>(null);
 
+  async function openPicker(page: ParsedPage) {
+    const candidates = await measureImages(page.images);
+    if (!candidates.length && mode === "create")
+      throw new Error("No usable images found — save the page as “Webpage, Single File” (.mhtml) so the map is embedded.");
+    /* preselect the likely maps: D&D Beyond names its map files
+       "map-…", which beats any size heuristic (the biggest images
+       are usually art). Fallback: largest portrait-ish image. */
+    const byName = candidates
+      .map((c, i) => ({ c, i }))
+      .filter(({ c }) => /(^|[/_.-])map[-._]/i.test(c.image.location))
+      .map(({ i }) => i);
+    const mapish = candidates.findIndex(c => c.width / c.height <= 1.6);
+    const selected = byName.length ? byName : (mapish >= 0 ? [mapish] : []);
+    setPicker({ page, candidates, selected: new Set(selected) });
+  }
+
   async function handleFile(file: File) {
     setBusy(true); setError("");
     try {
-      const page = await parseSavedPage(file);
-      const candidates = await measureImages(page.images);
-      if (!candidates.length && mode === "create")
-        throw new Error("No usable images found — save the page as “Webpage, Single File” (.mhtml) so the map is embedded.");
-      /* preselect the likely maps: D&D Beyond names its map files
-         "map-…", which beats any size heuristic (the biggest images
-         are usually art). Fallback: largest portrait-ish image. */
-      const byName = candidates
-        .map((c, i) => ({ c, i }))
-        .filter(({ c }) => /(^|[/_.-])map[-._]/i.test(c.image.location))
-        .map(({ i }) => i);
-      const mapish = candidates.findIndex(c => c.width / c.height <= 1.6);
-      const selected = byName.length ? byName : (mapish >= 0 ? [mapish] : []);
-      setPicker({ page, candidates, selected: new Set(selected) });
+      await openPicker(await parseSavedPage(file));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
   }
+
+  useEffect(() => {
+    if (!incoming) return;
+    void (async () => {
+      setBusy(true); setError("");
+      try { await openPicker(incoming); }
+      catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+      finally { setBusy(false); onIncomingHandled?.(); }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incoming]);
 
   function confirm() {
     if (!picker) return;
