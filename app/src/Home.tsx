@@ -2,9 +2,8 @@
  * saved from D&D Beyond (Webpage, Single File → .mhtml, or plain
  * .html), pick which of its images are the maps, done.
  */
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { ModuleDef } from "./modules";
-import type { ParsedPage } from "./mhtml";
 import {
   buildModule, collectPinsByMap, exportAllBundles, exportPageBundle,
   parseBundleFile, writeImportedPins,
@@ -15,14 +14,12 @@ import { saveFile } from "./helpers";
 
 type Bundle = ReturnType<typeof parseBundleFile>;
 
-export function Home({ modules, onOpen, onCreate, onDelete, onRename, incoming, onIncomingHandled }: {
+export function Home({ modules, onOpen, onCreate, onDelete, onRename }: {
   modules: ModuleDef[];
   onOpen: (id: string) => void;
   onCreate: (m: ModuleDef) => void;
   onDelete: (id: string) => void;
   onRename: (id: string, title: string) => void;
-  incoming?: ParsedPage | null;
-  onIncomingHandled?: () => void;
 }) {
   const pageFileRef = useRef<HTMLInputElement>(null);
   const [pageError, setPageError] = useState("");
@@ -60,21 +57,6 @@ export function Home({ modules, onOpen, onCreate, onDelete, onRename, incoming, 
     );
 
   const exportAll = () => doExport("dm-mapper-pages.dmmap.json", exportAllBundles(modules));
-
-  /* the bookmarklet: from a D&D Beyond page you're reading (logged in),
-     it opens this app and posts that page's live DOM over — no file.
-     Needs the app on its own http(s) origin; hidden in the hosted
-     preview (its iframe can't receive the hand-off). */
-  const canBookmarklet = /^https?:$/.test(location.protocol) && !window.claude;
-  const bookmarklet = useMemo(() => {
-    const app = location.href.split("#")[0];
-    const src =
-      `(()=>{var w=window.open(${JSON.stringify(app)},"dm-mapper-import");if(!w)return;` +
-      `var d={dmMapperImport:1,url:location.href,title:document.title,html:document.documentElement.outerHTML},n=0,` +
-      `t=setInterval(function(){if(n++>60)clearInterval(t);else try{w.postMessage(d,${JSON.stringify(location.origin)})}catch(e){}},350);` +
-      `addEventListener("message",function h(e){if(e.data&&e.data.dmMapperAck){clearInterval(t);removeEventListener("message",h)}})})()`;
-    return "javascript:" + encodeURIComponent(src);
-  }, []);
 
   return (
     <>
@@ -120,19 +102,8 @@ export function Home({ modules, onOpen, onCreate, onDelete, onRename, incoming, 
             buttonLabel="＋ import from D&D Beyond"
             buttonClass="btn big pri"
             onPicked={(page, picked) => onCreate(buildModule(page, picked))}
-            incoming={incoming}
-            onIncomingHandled={onIncomingHandled}
           />
           <p className="uphint">save the adventure page first: Ctrl/Cmd-S → “Webpage, Single File”</p>
-          {canBookmarklet && (
-            <p className="uphint">
-              or skip the file: drag{" "}
-              <a className="bmk" href={bookmarklet} draggable onClick={e => e.preventDefault()}>
-                ⚓ send to DM mapper
-              </a>{" "}
-              to your bookmarks bar once — then click it while reading any D&D Beyond page
-            </p>
-          )}
           <div className="uprow">
             <button className="btn" onClick={() => pageFileRef.current?.click()}>
               ⇞ import pages

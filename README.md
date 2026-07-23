@@ -15,18 +15,7 @@ downloading it onto a tablet works just as well.
 1. **Upload.** On D&D Beyond, save the adventure page with
    Ctrl/Cmd-S → *"Webpage, Single File"* (`.mhtml`; plain `.html` works
    too when its images are embedded or remote). Upload it on the
-   library screen.
-
-   **Or skip the file:** drag the library's **⚓ send to DM mapper**
-   bookmarklet to your bookmarks bar once. Then, while reading any
-   adventure page on D&D Beyond (logged in, so your owned content is
-   there), click it — the page you're looking at is sent straight into
-   the app and the map picker opens. No servers and no credentials are
-   involved: the bookmarklet just hands over the page's own HTML
-   cross-tab (browsers rightly forbid the app fetching D&D Beyond
-   itself). Maps imported this way load from D&D Beyond's CDN, so they
-   need to be online — use an `.mhtml` upload if you want the map
-   image stored offline. The app parses the archive — no server involved —
+   library screen. The app parses the archive — no server involved —
    and shows the images it found: the "map-…" files D&D Beyond uses
    come preselected, including the linked **"View Player Version"**
    maps (those load from the CDN, so they need to be online). Pages
