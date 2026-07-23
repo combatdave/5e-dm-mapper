@@ -1,4 +1,4 @@
-# 5e DM mapper
+# Dungeon Atlas
 
 Tablet-first tool for running published D&D 5e adventures at the table.
 Save an adventure page from D&D Beyond, upload it, pick the map image,

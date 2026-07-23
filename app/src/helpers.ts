@@ -35,7 +35,7 @@ export const storage = (() => {
 /* every area link opens in ONE shared tab (they all point at the
    same D&D Beyond page, just different anchors) so a session
    doesn't end in forty duplicate tabs */
-export const TEXT_TAB = "sunless-citadel-text";
+export const TEXT_TAB = "dungeon-atlas-text";
 
 export function openArea(href: string): void {
   let w: Window | null = null;

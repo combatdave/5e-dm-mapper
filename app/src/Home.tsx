@@ -56,13 +56,13 @@ export function Home({ modules, onOpen, onCreate, onDelete, onRename }: {
       exportPageBundle(m, collectPinsByMap(m)),
     );
 
-  const exportAll = () => doExport("dm-mapper-pages.dmmap.json", exportAllBundles(modules));
+  const exportAll = () => doExport("dungeon-atlas-pages.dmmap.json", exportAllBundles(modules));
 
   return (
     <>
       <header className="home-head">
         <div className="masthead">
-          <h1>5e DM mapper</h1>
+          <h1>Dungeon Atlas</h1>
         </div>
         <p className="sub">your D&D Beyond adventure pages as interactive maps</p>
       </header>
