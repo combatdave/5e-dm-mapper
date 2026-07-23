@@ -27,7 +27,7 @@ export function ModuleView({ module, onBack, onUpdate }: {
 
   const stores = useMemo(
     () => module.maps.map((m, i) =>
-      new PinStore(pinStoreKey(module.id, i), i === 0 ? (module.basePins ?? {}) : {}, m.width, m.height)),
+      new PinStore(pinStoreKey(module.id, i), {}, m.width, m.height)),
     [module],
   );
 

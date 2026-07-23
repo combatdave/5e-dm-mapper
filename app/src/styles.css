@@ -125,6 +125,7 @@ section.level{flex:1;min-height:0;display:flex;flex-direction:column;position:re
 main.home,header.home-head{max-width:680px}
 main.home{gap:16px;padding-top:14px}
 .modlist{display:flex;flex-direction:column;gap:8px}
+.empty{color:var(--dim);font:italic 13.5px var(--serif);text-align:center;margin:26px 0 12px}
 .modcard{display:flex;gap:6px;align-items:stretch}
 .modopen{
   flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;align-items:flex-start;text-align:left;

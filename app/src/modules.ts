@@ -1,11 +1,8 @@
-/* Module registry: the built-in Sunless Citadel plus any modules the
- * DM creates by uploading a saved D&D Beyond page. Uploaded modules
- * (including their map images, as Blobs) persist in IndexedDB; pin
- * placements always live in localStorage under "edpins:<module id>"
- * (the built-in module's id is the historical key, so nothing is
- * orphaned).
+/* Module registry: the pages the DM creates by uploading saved
+ * D&D Beyond pages. Modules (including their map images, as Blobs)
+ * persist in IndexedDB; pin placements live in localStorage under
+ * "edpins:<module id>".
  */
-import { BASE_PINS, EXPECTED, HREFS, MAP, MODULE_URL, NAMES } from "./mapdata";
 import type { AreaDigest, PageHeading, PageImage } from "./mhtml";
 import { PinStore } from "./pins";
 
@@ -27,23 +24,7 @@ export interface ModuleDef {
   expected: string[];               // labels offered on the pin rail
   maps: MapDef[];
   areas?: Record<string, AreaDigest>;   // per-area digests for hover cards
-  builtin?: boolean;
-  basePins?: Record<string, number[][]>;
 }
-
-export const BUILTIN: ModuleDef = {
-  /* id kept identical to the historical document.title so existing
-     localStorage pins keep working */
-  id: "The Sunless Citadel — map launcher",
-  title: "The Citadel - Fortress Level",
-  sourceUrl: MODULE_URL,
-  names: NAMES,
-  hrefs: HREFS,
-  expected: EXPECTED,
-  maps: [{ title: MAP.title, width: MAP.width, height: MAP.height, url: MAP.src }],
-  builtin: true,
-  basePins: BASE_PINS,
-};
 
 /* generic rail labels for uploads whose headings aren't numbered */
 export const GENERIC_EXPECTED = Array.from({ length: 60 }, (_, i) => String(i + 1));
@@ -144,7 +125,7 @@ export type PinsByMap = Record<string, Record<string, [number, number][]>>;
 export function collectPinsByMap(m: ModuleDef): PinsByMap {
   const out: PinsByMap = {};
   m.maps.forEach((map, i) => {
-    const store = new PinStore(pinStoreKey(m.id, i), i === 0 ? (m.basePins ?? {}) : {}, map.width, map.height);
+    const store = new PinStore(pinStoreKey(m.id, i), {}, map.width, map.height);
     const labels: Record<string, [number, number][]> = {};
     for (const p of store.pins) (labels[p.label] ||= []).push([Math.round(p.x), Math.round(p.y)]);
     if (Object.keys(labels).length) out[String(i)] = labels;
@@ -165,10 +146,9 @@ function pageEntry(m: ModuleDef, pinsByMap: PinsByMap) {
       width: x.width,
       height: x.height,
       player: x.player || undefined,
-      /* keep only shareable remote urls; blobs and the bundled data
-         URI come back via "import save" */
+      /* keep only shareable remote urls; embedded images come back
+         via "import from D&D Beyond" on the destination */
       url: x.url && /^https?:/.test(x.url) ? x.url : undefined,
-      bundled: x.url?.startsWith("data:") || undefined,
     })),
     pins: pinsByMap,
   };
@@ -210,14 +190,8 @@ function entryToPage(b: Record<string, any>): { module: ModuleDef; pins: PinsByM
       width: Number(x.width) || 100,
       height: Number(x.height) || 100,
       player: x.player ? true : undefined,
-      url: typeof x.url === "string" && /^https?:/.test(x.url) ? x.url
-        /* the bundled built-in map can be restored locally */
-        : (x.bundled && String(b.id) === BUILTIN.id
-            ? BUILTIN.maps.find(bm => bm.width === Number(x.width) && bm.height === Number(x.height))?.url
-            : undefined),
+      url: typeof x.url === "string" && /^https?:/.test(x.url) ? x.url : undefined,
     })),
-    builtin: String(b.id) === BUILTIN.id || undefined,
-    basePins: String(b.id) === BUILTIN.id ? BUILTIN.basePins : undefined,
   });
   const pins: PinsByMap = (b.pins && typeof b.pins === "object") ? b.pins : {};
   return { module, pins };

@@ -69,13 +69,16 @@ export function Home({ modules, onOpen, onCreate, onDelete, onRename }: {
 
       <main className="home">
         <div className="modlist">
+          {modules.length === 0 && (
+            <p className="empty">your library is empty — add your first adventure below</p>
+          )}
           {modules.map(m => (
             <div key={m.id} className="modcard">
               <button className="modopen" onClick={() => onOpen(m.id)}>
                 <span className="modtitle">{m.title}</span>
                 <span className="modmeta">
                   {m.maps.length} map{m.maps.length === 1 ? "" : "s"} · {m.expected.length} areas
-                  {m.areas ? " · text" : ""}{m.builtin ? " · built-in" : ""}
+                  {m.areas ? " · text" : ""}
                 </span>
               </button>
               <button className="modexp" aria-label={"export " + m.title} title="export this page"
@@ -86,12 +89,10 @@ export function Home({ modules, onOpen, onCreate, onDelete, onRename }: {
                 onClick={() => setRenaming(m)}>
                 ✎
               </button>
-              {!m.builtin && (
-                <button className="moddel" aria-label={"delete " + m.title} title="delete"
-                  onClick={() => setDeleting(m)}>
-                  ✕
-                </button>
-              )}
+              <button className="moddel" aria-label={"delete " + m.title} title="delete"
+                onClick={() => setDeleting(m)}>
+                ✕
+              </button>
             </div>
           ))}
         </div>

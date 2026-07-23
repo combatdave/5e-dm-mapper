@@ -1,11 +1,10 @@
 /* Pin model + per-device persistence.
  *
- * Baked pins come from user_pins.json at build time. Pins the DM
- * places or moves in edit mode overlay them and are stored in
- * localStorage under the same key (and JSON shape) as earlier builds:
- * label → [[x, y], …] in image pixels. The same semantics as always:
- * a placement within 12px of an existing same-label pin moves that
- * pin; anything farther away creates a new one.
+ * Pins the DM places or moves in edit mode are stored in localStorage:
+ * label → [[x, y], …] in image pixels. A placement within 12px of an
+ * existing same-label pin moves that pin; anything farther away
+ * creates a new one. (Base pins passed to the constructor underlay
+ * the stored ones — page imports use that path.)
  */
 import { clamp, isMarkLabel, storage } from "./helpers";
 

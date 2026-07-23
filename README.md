@@ -32,8 +32,7 @@ downloading it onto a tablet works just as well.
    from D&D Beyond** — upload the same file again to add its other
    maps as tabs and merge in the area text, links and names. Existing
    pins are untouched, duplicate maps are skipped, and importing with
-   no maps selected attaches the text alone (that's how the built-in
-   page gets its reader).
+   no maps selected attaches the text alone.
 
 2. **Annotate.** In **edit** mode, tap the map and a focused
    input opens: type the room number and press enter — the pin lands
@@ -66,8 +65,7 @@ downloading it onto a tablet works just as well.
    inside (monsters, spells, cross-references) opens on D&D Beyond in
    one shared tab; the panel's header button jumps to the area there
    too. All of it works offline: the section HTML is sanitized and
-   stored with the module at upload time. (The built-in page has no
-   stored text — upload your own save to get the reader.)
+   stored with the module at upload time.
 
 4. **Save & export.** Pins live per-device in `localStorage`
    (`edpins:<module id>`, unchanged from earlier builds); **✕ clear
@@ -81,16 +79,11 @@ downloading it onto a tablet works just as well.
    the matching slots and attaches the text. Your work travels as a
    clean little file; the content re-attaches from your own save.
 
-The Sunless Citadel (Fortress Level) ships built in, with all 41 rooms
-and 11 trap/secret-door markers pinned. To update its baked pins,
-replace [`user_pins.json`](user_pins.json) with a fresh export and
-rebuild.
-
 ## Development
 
 React + TypeScript + Vite; source in [`app/`](app/). `npm run build`
 type-checks and emits the single-file `index.html` at the repo root
-(`vite-plugin-singlefile`; the built-in map image is inlined).
+(`vite-plugin-singlefile`).
 
 ```
 npm install
@@ -112,7 +105,6 @@ Layout:
 - `app/src/mhtml.ts` — MHTML / HTML save parsing
 - `app/src/modules.ts` — module model + IndexedDB persistence
 - `app/src/pins.ts` — pin model + localStorage persistence
-- `app/src/mapdata.ts`, `user_pins.json` — the built-in module
   ("The Citadel - Fortress Level")
 
 ## Ideas / not done yet

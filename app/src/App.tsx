@@ -1,28 +1,23 @@
 import { useEffect, useState } from "react";
 import type { ModuleDef } from "./modules";
 import {
-  BUILTIN, deleteModule, listSavedModules, saveModule,
+  deleteModule, listSavedModules, saveModule,
   setTitleOverride, titleOverrides,
 } from "./modules";
 import { ModuleView } from "./ModuleView";
 import { Home } from "./Home";
 
 export default function App() {
-  const [modules, setModules] = useState<ModuleDef[]>([BUILTIN]);
+  const [modules, setModules] = useState<ModuleDef[]>([]);
   const [openId, setOpenId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     void (async () => {
       const saved = await listSavedModules();
-      /* a save imported into the built-in page persists under its id —
-         prefer that enriched copy over the bundled definition */
-      const savedBuiltin = saved.find(m => m.id === BUILTIN.id);
-      const first = savedBuiltin ? { ...BUILTIN, ...savedBuiltin, builtin: true } : BUILTIN;
-      const all = [first, ...saved.filter(m => m.id !== BUILTIN.id)];
       const titles = titleOverrides();
-      for (const m of all) if (titles[m.id]) m.title = titles[m.id];
-      setModules(all);
+      for (const m of saved) if (titles[m.id]) m.title = titles[m.id];
+      setModules(saved);
       setReady(true);
     })();
   }, []);
@@ -62,7 +57,7 @@ export default function App() {
     setModules(ms => ms.map(m => {
       if (m.id !== id) return m;
       m.title = title;                      // keep the same object: open views hold it
-      if (!m.builtin) void saveModule(m);
+      void saveModule(m);
       return m;
     }));
   };
